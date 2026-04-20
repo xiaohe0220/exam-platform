@@ -1,0 +1,4 @@
+-- 若启动时报 users 表缺少 email/enabled 列，可在对应库中执行（列已存在会报错，可忽略）
+-- ALTER TABLE users ADD COLUMN email VARCHAR(120) NULL;
+-- ALTER TABLE users ADD COLUMN enabled TINYINT(1) NULL;
+-- UPDATE users SET enabled = 1 WHERE enabled IS NULL;

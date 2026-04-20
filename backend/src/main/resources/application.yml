@@ -1,0 +1,48 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+spring:
+  profiles:
+    # 默认本地 H2，无需安装 MySQL；使用 MySQL 时设置环境变量 SPRING_PROFILES_ACTIVE=mysql
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  application:
+    name: exam-platform
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+  servlet:
+    multipart:
+      max-file-size: 8MB
+      max-request-size: 10MB
+  data:
+    redis:
+      host: localhost
+      port: 6380
+
+app:
+  redis:
+    enabled: false
+  cors:
+    # 公网部署且希望任意来源可访问时设为 true（风险自担）
+    allow-all-origins: ${APP_CORS_ALLOW_ALL_ORIGINS:false}
+    allowed-origins:
+      - http://localhost:5173
+      - http://127.0.0.1:5173
+  jwt:
+    # 生产环境务必设置环境变量 APP_JWT_SECRET（≥32 字节）
+    secret: "${APP_JWT_SECRET:CampusExamPlatformJwtSecretKeyChangeInProductionMin256Bits!!}"
+    expiration-ms: 86400000
+  agent:
+    enabled: true
+    # 对接 OpenAI 兼容接口（留空则使用内置规则回复）
+    api-key: "${APP_AGENT_API_KEY:}"
+    base-url: "${APP_AGENT_BASE_URL:https://api.openai.com/v1/chat/completions}"
+    model: "${APP_AGENT_MODEL:gpt-4o-mini}"
+
+logging:
+  level:
+    com.campus.exam: INFO

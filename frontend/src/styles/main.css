@@ -1,0 +1,44 @@
+@import './design-tokens.css';
+
+:root {
+  --campus-primary: #4a90e2;
+  --ep-color-primary: #4a90e2;
+  --el-color-primary: #4a90e2;
+  --campus-accent-soft: rgba(74, 144, 226, 0.12);
+  --campus-accent-mid: rgba(74, 144, 226, 0.35);
+  --campus-bg: var(--ds-bg, #f7f9fc);
+  --campus-text: var(--ds-text, #1f2937);
+  --campus-card: #ffffff;
+}
+
+.theme-compact .el-card {
+  --el-card-padding: 12px;
+}
+.theme-compact .el-main {
+  padding: 12px !important;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  font-family: 'Inter', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--campus-bg);
+  color: var(--campus-text);
+}
+
+.ep-button--primary,
+.el-button--primary {
+  --ep-button-bg-color: var(--campus-primary);
+  --ep-button-border-color: var(--campus-primary);
+}
+
+/* 考试防作弊：限制文本选中（可配合作答区使用） */
+.exam-protect {
+  user-select: none;
+}
+.exam-protect input,
+.exam-protect textarea {
+  user-select: text;
+}

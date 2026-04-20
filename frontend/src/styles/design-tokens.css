@@ -1,0 +1,60 @@
+/**
+ * 线上考试平台 · 设计 Token（极简 + 数据可视化）
+ * 主色 #4A90E2 · 成功 #50C878 · 危险 #FF6B6B · 提示 #F5A623 · 背景 #F7F9FC
+ */
+:root {
+  --ds-brand: #4a90e2;
+  --ds-success: #50c878;
+  --ds-danger: #ff6b6b;
+  --ds-warning: #f5a623;
+  --ds-bg: #f7f9fc;
+  --ds-surface: #ffffff;
+  --ds-text: #1f2937;
+  --ds-text-secondary: #6b7280;
+  --ds-border: rgba(15, 23, 42, 0.08);
+  --ds-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --ds-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --ds-radius: 10px;
+  --ds-radius-btn: 8px;
+
+  /* 与现有工程变量对齐 */
+  --campus-primary: var(--ds-brand);
+  --ep-color-primary: var(--ds-brand);
+  --el-color-primary: var(--ds-brand);
+  --campus-accent-soft: rgba(74, 144, 226, 0.12);
+  --campus-accent-mid: rgba(74, 144, 226, 0.35);
+  --campus-bg: var(--ds-bg);
+  --campus-text: var(--ds-text);
+  --campus-card: var(--ds-surface);
+}
+
+/* 教务监控大屏 · 深色主题 */
+[data-theme='admin-dark'] {
+  --ds-bg: #0f1419;
+  --ds-surface: #1a2129;
+  --ds-text: #e8eaed;
+  --ds-text-secondary: #9aa0a6;
+  --ds-border: rgba(255, 255, 255, 0.08);
+  --ds-shadow-sm: 0 1px 0 rgba(255, 255, 255, 0.06);
+  --ds-shadow-md: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+/**
+ * 学生学习端 · 参考「实验室/测评」类界面：浅灰底、白卡片、红主操作、蓝选中态
+ */
+.student-lab-theme {
+  --lab-bg: #f5f5f5;
+  --lab-surface: #ffffff;
+  --lab-primary: #e64340;
+  --lab-primary-soft: rgba(230, 67, 64, 0.1);
+  --lab-blue: #5b8ff9;
+  --lab-blue-soft: rgba(91, 143, 249, 0.12);
+  --lab-text: #262626;
+  --lab-text-secondary: #8c8c8c;
+  --lab-border: #f0f0f0;
+  --lab-radius: 8px;
+  /* Element Plus 学生端主色（按钮、链接） */
+  --el-color-primary: #e64340;
+  --campus-primary: #e64340;
+  --campus-accent-soft: var(--lab-primary-soft);
+}

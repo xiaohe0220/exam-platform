@@ -1,0 +1,4 @@
+# 与 docker-compose 联用：docker compose up -d 后启动后端时加 --spring.profiles.active=docker
+app:
+  redis:
+    enabled: true

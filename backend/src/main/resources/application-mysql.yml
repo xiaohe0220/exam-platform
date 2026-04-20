@@ -1,0 +1,23 @@
+# MySQL profile（本机/服务器通用）：SPRING_PROFILES_ACTIVE=mysql
+spring:
+  datasource:
+    # 生产建议通过环境变量覆盖，避免写死账号和地址
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:exam_platform}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8&createDatabaseIfNotExist=true
+    username: ${DB_USERNAME:exam_user}
+    password: ${DB_PASSWORD:change_me}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  jpa:
+    hibernate:
+      # 首次部署可自动建表；稳定后建议改为 validate 并配合迁移脚本
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
