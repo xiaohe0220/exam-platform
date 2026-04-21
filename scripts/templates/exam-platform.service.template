@@ -1,11 +1,13 @@
 [Unit]
 Description=Exam Platform Backend
-After=network.target mysql.service
+After=network.target
 
 [Service]
 Type=simple
 User=root
 WorkingDirectory=/opt/exam-platform/backend
+Environment=JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+Environment=PATH=/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 Environment=SPRING_PROFILES_ACTIVE=mysql
 Environment=DB_HOST=127.0.0.1
 Environment=DB_PORT=3306
@@ -14,7 +16,8 @@ Environment=DB_USERNAME=exam_user
 Environment=DB_PASSWORD=change_me
 Environment=APP_JWT_SECRET=replace_with_secure_secret_min_32_bytes
 Environment=APP_CORS_ALLOW_ALL_ORIGINS=true
-ExecStart=/usr/bin/mvn spring-boot:run
+# 先在本机执行: cd /opt/exam-platform/backend && mvn -DskipTests package
+ExecStart=/usr/lib/jvm/java-17-openjdk/bin/java -jar /opt/exam-platform/backend/target/exam-platform-1.0.0.jar
 Restart=always
 RestartSec=5
 

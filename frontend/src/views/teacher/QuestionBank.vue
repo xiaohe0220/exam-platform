@@ -6,10 +6,63 @@
         <el-button type="primary" @click="openEdit()">新建题目</el-button>
       </div>
     </template>
-    <el-table :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="type" label="题型" width="120" />
+
+    <el-space wrap class="toolbar">
+      <el-input
+        v-model="keyword"
+        placeholder="搜索题干 / 知识点 / 文件夹"
+        clearable
+        style="width: 280px"
+      />
+      <el-select v-model="folderFilter" placeholder="按文件夹筛选" clearable style="width: 220px">
+        <el-option v-for="f in folderOptions" :key="f" :label="f" :value="f" />
+      </el-select>
+      <el-select v-model="typeFilter" placeholder="按题型筛选" clearable style="width: 180px">
+        <el-option label="单选题" value="SINGLE_CHOICE" />
+        <el-option label="多选题" value="MULTIPLE_CHOICE" />
+        <el-option label="判断题" value="TRUE_FALSE" />
+        <el-option label="填空题" value="FILL_BLANK" />
+        <el-option label="简答题" value="SHORT_ANSWER" />
+      </el-select>
+      <el-radio-group v-model="viewMode">
+        <el-radio-button label="grouped">分组视图</el-radio-button>
+        <el-radio-button label="list">列表视图</el-radio-button>
+      </el-radio-group>
+      <el-button @click="load">刷新</el-button>
+    </el-space>
+
+    <div v-if="viewMode === 'grouped'">
+      <el-collapse v-model="activeGroups" class="grouped">
+        <el-collapse-item
+          v-for="g in groupedRows"
+          :key="g.key"
+          :name="g.key"
+        >
+          <template #title>
+            <span>{{ g.folder }} / {{ typeLabel(g.type) }}（{{ g.items.length }}题）</span>
+          </template>
+          <el-table :data="g.items" stripe border style="width: 100%">
+            <el-table-column prop="title" label="题干" min-width="260" show-overflow-tooltip />
+            <el-table-column prop="knowledgePoint" label="知识点" width="180" show-overflow-tooltip />
+            <el-table-column prop="difficulty" label="难度" width="80" />
+            <el-table-column label="操作" width="160" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+                <el-button link type="danger" @click="remove(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-collapse-item>
+      </el-collapse>
+    </div>
+
+    <el-table v-else :data="filteredRows" stripe border style="width: 100%">
+      <el-table-column prop="type" label="题型" width="120">
+        <template #default="{ row }">{{ typeLabel(row.type) }}</template>
+      </el-table-column>
       <el-table-column prop="title" label="题干" min-width="220" show-overflow-tooltip />
-      <el-table-column prop="chapter" label="章节" width="140" />
+      <el-table-column prop="chapter" label="文件夹" width="180" show-overflow-tooltip />
+      <el-table-column prop="knowledgePoint" label="知识点" width="160" show-overflow-tooltip />
       <el-table-column prop="difficulty" label="难度" width="80" />
       <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
@@ -43,8 +96,18 @@
       <el-form-item label="难度(1-5)">
         <el-input-number v-model="form.difficulty" :min="1" :max="5" />
       </el-form-item>
-      <el-form-item label="章节">
-        <el-input v-model="form.chapter" />
+      <el-form-item label="题目文件夹">
+        <el-select
+          v-model="form.chapter"
+          filterable
+          allow-create
+          default-first-option
+          clearable
+          style="width: 100%"
+          placeholder="可选择已有文件夹，也可直接输入新文件夹名"
+        >
+          <el-option v-for="f in folderOptions" :key="f" :label="f" :value="f" />
+        </el-select>
       </el-form-item>
       <el-form-item label="知识点">
         <el-input v-model="form.knowledgePoint" />
@@ -74,6 +137,11 @@ const rows = ref([])
 const dlg = ref(false)
 const saving = ref(false)
 const editing = ref(null)
+const keyword = ref('')
+const folderFilter = ref('')
+const typeFilter = ref('')
+const viewMode = ref('grouped')
+const activeGroups = ref([])
 const form = reactive({
   type: 'SINGLE_CHOICE',
   title: '',
@@ -90,6 +158,43 @@ const hasOptions = computed(() =>
   ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'].includes(form.type)
 )
 
+const folderOptions = computed(() =>
+  [...new Set(rows.value.map(r => (r.chapter || '').trim()).filter(Boolean))]
+)
+
+const filteredRows = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  return rows.value.filter(r => {
+    if (folderFilter.value && (r.chapter || '') !== folderFilter.value) return false
+    if (typeFilter.value && r.type !== typeFilter.value) return false
+    if (!kw) return true
+    return [r.title, r.chapter, r.knowledgePoint]
+      .filter(Boolean)
+      .some(v => String(v).toLowerCase().includes(kw))
+  })
+})
+
+const groupedRows = computed(() => {
+  const map = new Map()
+  for (const r of filteredRows.value) {
+    const folder = (r.chapter || '未分文件夹').trim() || '未分文件夹'
+    const key = `${folder}__${r.type}`
+    if (!map.has(key)) map.set(key, { key, folder, type: r.type, items: [] })
+    map.get(key).items.push(r)
+  }
+  return [...map.values()].sort((a, b) => a.folder.localeCompare(b.folder) || a.type.localeCompare(b.type))
+})
+
+function typeLabel(t) {
+  return {
+    SINGLE_CHOICE: '单选题',
+    MULTIPLE_CHOICE: '多选题',
+    TRUE_FALSE: '判断题',
+    FILL_BLANK: '填空题',
+    SHORT_ANSWER: '简答题'
+  }[t] || t
+}
+
 function reset() {
   form.type = 'SINGLE_CHOICE'
   form.title = ''
@@ -105,6 +210,7 @@ function reset() {
 async function load() {
   const { data } = await http.get('/teacher/questions')
   rows.value = data
+  activeGroups.value = groupedRows.value.slice(0, 8).map(g => g.key)
 }
 
 function openEdit(row) {
@@ -173,5 +279,11 @@ onMounted(load)
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.toolbar {
+  margin-bottom: 12px;
+}
+.grouped :deep(.el-collapse-item__header) {
+  font-weight: 600;
 }
 </style>

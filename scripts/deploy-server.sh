@@ -46,6 +46,23 @@ if [[ -z "$MYSQL_ROOT_PASSWORD" ]]; then
   exit 1
 fi
 
+# Spring Boot 需要 JDK 17；Maven 会跟随 JAVA_HOME，避免落到系统默认 JDK 11
+JAVA_HOME_RESOLVED="${JAVA_HOME:-}"
+if [[ -z "$JAVA_HOME_RESOLVED" ]]; then
+  for d in /usr/lib/jvm/java-17-openjdk* /usr/lib/jvm/java-17*; do
+    if [[ -d "$d" && -x "$d/bin/java" ]]; then
+      JAVA_HOME_RESOLVED="$d"
+      break
+    fi
+  done
+fi
+if [[ -z "$JAVA_HOME_RESOLVED" || ! -x "$JAVA_HOME_RESOLVED/bin/java" ]]; then
+  echo "未检测到 JDK 17。请先安装，例如：sudo yum install -y java-17-openjdk-devel" >&2
+  exit 1
+fi
+echo "Using JAVA_HOME=$JAVA_HOME_RESOLVED"
+"$JAVA_HOME_RESOLVED/bin/java" -version
+
 echo "[1/6] Building frontend..."
 cd "$PROJECT_DIR/frontend"
 npm install
@@ -55,19 +72,32 @@ echo "[2/6] Publishing frontend to $WEB_ROOT ..."
 mkdir -p "$WEB_ROOT"
 cp -r "$PROJECT_DIR/frontend/dist/"* "$WEB_ROOT/"
 
-echo "[3/6] Initializing database..."
+echo "[3/7] Initializing database..."
 mysql -u"$MYSQL_ROOT_USER" -p"$MYSQL_ROOT_PASSWORD" < "$PROJECT_DIR/backend/scripts/mysql/create_database.sql"
 
-echo "[4/6] Writing systemd service..."
+echo "[4/7] Building backend JAR (JDK 17 + Maven)..."
+export JAVA_HOME="${JAVA_HOME_RESOLVED}"
+export PATH="${JAVA_HOME_RESOLVED}/bin:${PATH}"
+cd "$PROJECT_DIR/backend"
+mvn -q -DskipTests package
+JAR_FILE="${PROJECT_DIR}/backend/target/exam-platform-1.0.0.jar"
+if [[ ! -f "$JAR_FILE" ]]; then
+  echo "Backend JAR not found: $JAR_FILE" >&2
+  exit 1
+fi
+
+echo "[5/7] Writing systemd service..."
 cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
 [Unit]
 Description=Exam Platform Backend
-After=network.target mysql.service
+After=network.target
 
 [Service]
 Type=simple
 User=root
 WorkingDirectory=${PROJECT_DIR}/backend
+Environment=JAVA_HOME=${JAVA_HOME_RESOLVED}
+Environment=PATH=${JAVA_HOME_RESOLVED}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 Environment=SPRING_PROFILES_ACTIVE=mysql
 Environment=DB_HOST=${DB_HOST}
 Environment=DB_PORT=${DB_PORT}
@@ -76,7 +106,7 @@ Environment=DB_USERNAME=${DB_USERNAME}
 Environment=DB_PASSWORD=${DB_PASSWORD}
 Environment=APP_JWT_SECRET=${APP_JWT_SECRET}
 Environment=APP_CORS_ALLOW_ALL_ORIGINS=${APP_CORS_ALLOW_ALL_ORIGINS}
-ExecStart=/usr/bin/mvn spring-boot:run
+ExecStart=${JAVA_HOME_RESOLVED}/bin/java -jar ${JAR_FILE}
 Restart=always
 RestartSec=5
 
@@ -84,7 +114,8 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-echo "[5/6] Writing nginx site config..."
+echo "[6/7] Writing nginx site config..."
+mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 cat > "/etc/nginx/sites-available/${NGINX_SITE_NAME}" <<EOF
 server {
     listen 80;
@@ -110,7 +141,7 @@ EOF
 ln -sf "/etc/nginx/sites-available/${NGINX_SITE_NAME}" "/etc/nginx/sites-enabled/${NGINX_SITE_NAME}"
 nginx -t
 
-echo "[6/6] Restarting services..."
+echo "[7/7] Restarting services..."
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}"
 systemctl restart "${SERVICE_NAME}"
