@@ -69,9 +69,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
-    /** 本地 / 开发时在响应里附带简要原因，便于排查（勿在生产环境启用 dev/local profile 对外暴露） */
+    /** 本地 / 开发时在响应里附带简要原因，便于排查（勿在生产环境启用 dev/local/test profile 对外暴露） */
     private boolean isDevFriendlyProfile() {
         return Arrays.stream(environment.getActiveProfiles())
-                .anyMatch(p -> p.equals("local") || p.equals("dev") || p.equals("mysql"));
+                .anyMatch(p -> p.equals("local") || p.equals("dev") || p.equals("test"));
     }
 }

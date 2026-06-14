@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="智能考试评测运维平台">
+  <defs>
+    <linearGradient id="bg" x1="10" y1="8" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f8b8d"/>
+      <stop offset="0.62" stop-color="#1b2430"/>
+      <stop offset="1" stop-color="#111719"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="18" y1="16" x2="48" y2="49" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d9fffb"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <path d="M15 19.5c8.2-6.7 20.6-7.3 30-1.2 2.5 1.6 4.6 3.6 6.3 5.8" fill="none" stroke="#ff6b4a" stroke-width="4" stroke-linecap="round" opacity=".95"/>
+  <path d="M19 20h25.5v7H27.2v5.7h14.9v6.8H27.2v6.5h18.2v7H19V20z" fill="url(#mark)"/>
+  <path d="M43.3 37.9l4.1 4.1 8-9" fill="none" stroke="#2fb86e" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12 51.5h39" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" opacity=".24"/>
+</svg>

@@ -11,6 +11,7 @@ import com.campus.exam.web.dto.ExamSummaryDto;
 import com.campus.exam.web.dto.GradeRequest;
 import com.campus.exam.web.dto.RandomComposeRequest;
 import com.campus.exam.service.ExamStatsService;
+import com.campus.exam.service.ExamReportService;
 import com.campus.exam.service.StudentExamService;
 import com.campus.exam.service.TeacherAttemptDetailService;
 import com.campus.exam.service.TeacherGradeService;
@@ -18,11 +19,16 @@ import com.campus.exam.service.ExamRankingService;
 import com.campus.exam.web.dto.ExamMetaPatchRequest;
 import com.campus.exam.web.dto.ExamRankingRowDto;
 import com.campus.exam.web.dto.ExamStatsDto;
+import com.campus.exam.web.dto.ExamQuestionStatsDto;
 import com.campus.exam.web.dto.PageResponse;
 import com.campus.exam.web.dto.TeacherAttemptDetailDto;
 import jakarta.validation.Valid;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -42,6 +48,7 @@ public class TeacherExamController {
     private final TeacherAttemptDetailService teacherAttemptDetailService;
     private final StudentExamService studentExamService;
     private final ExamRankingService examRankingService;
+    private final ExamReportService examReportService;
 
     public TeacherExamController(
             ExamService examService,
@@ -50,7 +57,8 @@ public class TeacherExamController {
             ExamStatsService examStatsService,
             TeacherAttemptDetailService teacherAttemptDetailService,
             StudentExamService studentExamService,
-            ExamRankingService examRankingService) {
+            ExamRankingService examRankingService,
+            ExamReportService examReportService) {
         this.examService = examService;
         this.examAttemptRepository = examAttemptRepository;
         this.teacherGradeService = teacherGradeService;
@@ -58,6 +66,7 @@ public class TeacherExamController {
         this.teacherAttemptDetailService = teacherAttemptDetailService;
         this.studentExamService = studentExamService;
         this.examRankingService = examRankingService;
+        this.examReportService = examReportService;
     }
 
     @GetMapping("/{examId}/ranking")
@@ -142,6 +151,27 @@ public class TeacherExamController {
         return examStatsService.stats(user, examId);
     }
 
+    @GetMapping("/{examId}/question-stats")
+    public List<ExamQuestionStatsDto> questionStats(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long examId) {
+        return examReportService.questionStats(user, examId);
+    }
+
+    @GetMapping("/{examId}/attempts/export")
+    public ResponseEntity<ByteArrayResource> exportAttempts(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long examId) {
+        return xlsx("exam_" + examId + "_attempts.xlsx", examReportService.exportAttempts(user, examId));
+    }
+
+    @GetMapping("/{examId}/question-stats/export")
+    public ResponseEntity<ByteArrayResource> exportQuestionStats(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long examId) {
+        return xlsx("exam_" + examId + "_question_stats.xlsx", examReportService.exportQuestionStats(user, examId));
+    }
+
     @GetMapping("/{examId}/attempts/{attemptId}/detail")
     public TeacherAttemptDetailDto attemptDetail(
             @AuthenticationPrincipal AuthenticatedUser user,
@@ -168,5 +198,13 @@ public class TeacherExamController {
             @PathVariable Long examId,
             @PathVariable Long attemptId) {
         return studentExamService.teacherForceSubmit(user, examId, attemptId);
+    }
+
+    private static ResponseEntity<ByteArrayResource> xlsx(String filename, byte[] bytes) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(new ByteArrayResource(bytes));
     }
 }

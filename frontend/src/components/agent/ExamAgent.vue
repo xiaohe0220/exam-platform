@@ -27,6 +27,11 @@
         <template #header>
           <div class="drawer-head">
             <span class="dh-title">考试智能助手</span>
+            <el-tag v-if="agentStatus.enabled && agentStatus.configured" size="small" type="success" effect="plain">
+              已接入 {{ agentStatus.model || '大模型' }}
+            </el-tag>
+            <el-tag v-else-if="agentStatus.enabled" size="small" type="info" effect="plain">离线规则</el-tag>
+            <el-tag v-else size="small" type="warning" effect="plain">已关闭</el-tag>
             <el-tag v-if="lastFromLlm === true" size="small" type="success" effect="plain">大模型</el-tag>
             <el-tag v-else-if="lastFromLlm === false" size="small" type="info" effect="plain">离线规则</el-tag>
           </div>
@@ -81,6 +86,25 @@ const input = ref('')
 const loading = ref(false)
 const chatBodyRef = ref(null)
 const lastFromLlm = ref(null)
+const agentStatus = ref({
+  enabled: true,
+  configured: false,
+  model: ''
+})
+
+async function loadStatus() {
+  if (!store.token) return
+  try {
+    const { data } = await http.get('/agent/status')
+    agentStatus.value = {
+      enabled: data.enabled === true,
+      configured: data.configured === true,
+      model: data.model || ''
+    }
+  } catch {
+    agentStatus.value = { enabled: true, configured: false, model: '' }
+  }
+}
 
 async function send() {
   const text = input.value?.trim()
@@ -114,6 +138,10 @@ watch(
   () => messages.value.length,
   () => nextTick(() => scrollBottom())
 )
+
+watch(drawerOpen, (v) => {
+  if (v) loadStatus()
+})
 </script>
 
 <style scoped>

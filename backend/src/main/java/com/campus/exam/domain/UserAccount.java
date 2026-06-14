@@ -52,6 +52,10 @@ public class UserAccount {
     @Column(length = 120)
     private String email;
 
+    /** 通知用手机号（可选，配置短信网关后使用） */
+    @Column(length = 40)
+    private String phone;
+
     /**
      * 是否允许登录；旧库可为 null，视为启用。
      * 不使用 NOT NULL，避免在已有数据的表上做 ddl 时部分数据库拒绝无默认值的批量更新。

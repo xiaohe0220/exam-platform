@@ -79,11 +79,17 @@ public class InAppNotificationService {
         for (Long uid : userIds) {
             saveInApp(uid, NotificationType.EXAM_PUBLISHED, title, body, exam.getId());
             userAccountRepository.findById(uid).ifPresent(u ->
-                    notifyDispatchService.sendEmailIfPossible(
-                            u,
-                            title,
-                            body,
-                            Boolean.TRUE.equals(ps.getNotifyEmailEnabled())));
+            {
+                notifyDispatchService.sendEmailIfPossible(
+                        u,
+                        title,
+                        body,
+                        Boolean.TRUE.equals(ps.getNotifyEmailEnabled()));
+                notifyDispatchService.sendSmsIfPossible(
+                        u.getPhone(),
+                        title + "：" + body,
+                        Boolean.TRUE.equals(ps.getNotifySmsEnabled()));
+            });
         }
     }
 
@@ -98,11 +104,17 @@ public class InAppNotificationService {
         String body = "考试「" + examTitle + "」已阅卷计分，请查看成绩单。";
         saveInApp(studentUserId, NotificationType.GRADE_PUBLISHED, title, body, examId);
         userAccountRepository.findById(studentUserId).ifPresent(u ->
-                notifyDispatchService.sendEmailIfPossible(
-                        u,
-                        title,
-                        body,
-                        Boolean.TRUE.equals(ps.getNotifyEmailEnabled())));
+        {
+            notifyDispatchService.sendEmailIfPossible(
+                    u,
+                    title,
+                    body,
+                    Boolean.TRUE.equals(ps.getNotifyEmailEnabled()));
+            notifyDispatchService.sendSmsIfPossible(
+                    u.getPhone(),
+                    title + "：" + body,
+                    Boolean.TRUE.equals(ps.getNotifySmsEnabled()));
+        });
     }
 
     private void saveInApp(Long userId, NotificationType type, String title, String body, Long examId) {

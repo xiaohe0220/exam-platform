@@ -9,7 +9,9 @@ import com.campus.exam.web.dto.ExamRankingRowDto;
 import com.campus.exam.web.dto.ExamSummaryDto;
 import com.campus.exam.web.dto.ObjectiveReviewItemDto;
 import com.campus.exam.web.dto.PageResponse;
+import com.campus.exam.web.dto.SecurityEventRequest;
 import com.campus.exam.web.dto.StudentPaperDto;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -72,6 +74,15 @@ public class StudentExamController {
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable Long attemptId) {
         return studentExamService.reportSwitch(user, attemptId);
+    }
+
+    @PostMapping("/attempts/{attemptId}/security-events")
+    public Map<String, String> securityEvent(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long attemptId,
+            @Valid @RequestBody SecurityEventRequest req) {
+        studentExamService.reportSecurityEvent(user, attemptId, req);
+        return Map.of("message", "已记录");
     }
 
     @PostMapping("/attempts/{attemptId}/submit")

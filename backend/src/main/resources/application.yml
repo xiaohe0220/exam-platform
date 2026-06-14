@@ -26,6 +26,19 @@ spring:
 app:
   redis:
     enabled: false
+  seed:
+    # 生产默认不写入演示账号和样例考试；local/test profile 会开启。
+    demo-data-enabled: ${APP_SEED_DEMO_DATA_ENABLED:false}
+    bootstrap-admin:
+      # 空库首次启动时可显式创建首个管理员；创建后请移除这些环境变量。
+      username: ${APP_BOOTSTRAP_ADMIN_USERNAME:}
+      password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
+      display-name: ${APP_BOOTSTRAP_ADMIN_DISPLAY_NAME:系统管理员}
+  auth:
+    # 是否允许学生/教师使用学号或工号自主注册。学号/工号唯一，一个人只能注册一个账号。
+    public-registration-enabled: ${APP_PUBLIC_REGISTRATION_ENABLED:true}
+    # 仅演示环境可开启；生产请使用登录后改密或管理员重置。
+    demo-password-reset-enabled: ${APP_DEMO_PASSWORD_RESET_ENABLED:false}
   cors:
     # 公网部署且希望任意来源可访问时设为 true（风险自担）
     allow-all-origins: ${APP_CORS_ALLOW_ALL_ORIGINS:false}
@@ -37,11 +50,15 @@ app:
     secret: "${APP_JWT_SECRET:CampusExamPlatformJwtSecretKeyChangeInProductionMin256Bits!!}"
     expiration-ms: 86400000
   agent:
-    enabled: true
+    enabled: ${APP_AGENT_ENABLED:true}
     # 对接 OpenAI 兼容接口（留空则使用内置规则回复）
     api-key: "${APP_AGENT_API_KEY:}"
     base-url: "${APP_AGENT_BASE_URL:https://api.openai.com/v1/chat/completions}"
     model: "${APP_AGENT_MODEL:gpt-4o-mini}"
+    system-prompt: "${APP_AGENT_SYSTEM_PROMPT:你是「智能考试评测运维平台」的助手，面向师生。请用简洁中文回答，涉及考试规则、操作步骤时务必准确；若不确定请建议联系教务。}"
+  notify:
+    # 短信网关 Webhook：留空时仅站内信/邮件，不发送短信。
+    sms-webhook-url: "${APP_NOTIFY_SMS_WEBHOOK_URL:}"
 
 logging:
   level:

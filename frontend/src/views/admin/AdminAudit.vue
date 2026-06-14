@@ -16,7 +16,10 @@
         <template #header>
           <div class="head">
             <span>最近操作记录</span>
-            <el-input-number v-model="limit" :min="20" :max="500" :step="20" size="small" @change="load" />
+            <div class="tools">
+              <el-input-number v-model="limit" :min="20" :max="500" :step="20" size="small" @change="load" />
+              <el-button size="small" type="primary" plain @click="exportAudit">导出 Excel</el-button>
+            </div>
           </div>
         </template>
         <el-table v-loading="loading" :data="rows" border stripe size="small" max-height="560">
@@ -39,6 +42,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import http from '../../api/http'
 import { useUserStore } from '../../stores/user'
+import { saveBlob } from '../../utils/download'
 
 const router = useRouter()
 const store = useUserStore()
@@ -60,6 +64,15 @@ async function load() {
     ElMessage.error(e.message)
   } finally {
     loading.value = false
+  }
+}
+
+async function exportAudit() {
+  try {
+    const res = await http.get('/admin/audit-logs/export', { responseType: 'blob' })
+    saveBlob(res.data, 'audit_logs.xlsx')
+  } catch (e) {
+    ElMessage.error(e.message)
   }
 }
 
@@ -114,6 +127,11 @@ onMounted(() => {
 .head {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+.tools {
+  display: flex;
+  gap: 10px;
   align-items: center;
 }
 </style>

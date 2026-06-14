@@ -2,10 +2,10 @@
   <div
     v-if="paper"
     class="exam-root exam-protect"
-    @copy.prevent
-    @paste.prevent
-    @cut.prevent
-    @contextmenu.prevent
+    @copy.prevent="recordSecurity('COPY_BLOCKED')"
+    @paste.prevent="recordSecurity('PASTE_BLOCKED')"
+    @cut.prevent="recordSecurity('CUT_BLOCKED')"
+    @contextmenu.prevent="recordSecurity('CONTEXT_MENU_BLOCKED')"
   >
     <header class="exam-topbar">
       <div class="exam-topbar-main">
@@ -169,6 +169,7 @@ let timer = null
 let saveTimer = null
 let submitOnce = false
 let io = null
+const lastSecurityAt = {}
 
 const fbDlg = ref(false)
 const fbSubject = ref('')
@@ -343,6 +344,21 @@ function exitFullscreenSafe() {
   }
 }
 
+async function recordSecurity(eventType, detail = '') {
+  if (!paper.value || submitOnce) return
+  const now = Date.now()
+  if (lastSecurityAt[eventType] && now - lastSecurityAt[eventType] < 3000) return
+  lastSecurityAt[eventType] = now
+  try {
+    await http.post(`/student/attempts/${attemptId.value}/security-events`, {
+      eventType,
+      detail
+    })
+  } catch {
+    /* 安全事件不打断作答 */
+  }
+}
+
 async function load() {
   const { data } = await http.get(`/student/attempts/${attemptId.value}/paper`)
   paper.value = data
@@ -402,6 +418,7 @@ async function confirmSubmit() {
 
 async function onVisibility() {
   if (document.visibilityState === 'hidden' && paper.value) {
+    recordSecurity('VISIBILITY_HIDDEN', '页面进入后台或切换标签')
     try {
       const { data } = await http.post(`/student/attempts/${attemptId.value}/switch`)
       paper.value = { ...paper.value, switchCount: data.switchCount }
@@ -411,11 +428,18 @@ async function onVisibility() {
   }
 }
 
+function onFullscreenChange() {
+  if (paper.value?.exam?.fullscreenRequired && !document.fullscreenElement && !submitOnce) {
+    recordSecurity('FULLSCREEN_EXIT', '考试中退出全屏')
+  }
+}
+
 onMounted(async () => {
   window.addEventListener('keydown', onKeyDown)
   try {
     await load()
     document.addEventListener('visibilitychange', onVisibility)
+    document.addEventListener('fullscreenchange', onFullscreenChange)
   } catch (e) {
     ElMessage.error(e.message)
     router.push('/student')
@@ -428,6 +452,7 @@ onUnmounted(() => {
   clearInterval(saveTimer)
   io?.disconnect()
   document.removeEventListener('visibilitychange', onVisibility)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
   exitFullscreenSafe()
 })
 </script>

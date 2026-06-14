@@ -15,7 +15,12 @@
     </header>
     <el-main>
       <el-card shadow="never" class="card">
-        <template #header><span class="h">账号列表</span></template>
+        <template #header>
+          <div class="head">
+            <span class="h">账号列表</span>
+            <el-button size="small" type="primary" plain @click="exportUsers">导出用户</el-button>
+          </div>
+        </template>
         <p class="tip">可禁用异常账号、调整角色（勿随意改管理员账号）。</p>
         <el-table v-loading="loading" :data="list" border stripe size="small">
           <el-table-column prop="id" label="ID" width="70" />
@@ -26,6 +31,11 @@
           <el-table-column label="邮箱" min-width="160">
             <template #default="{ row }">
               <el-input v-model="row.email" size="small" placeholder="通知用" @blur="saveEmail(row)" />
+            </template>
+          </el-table-column>
+          <el-table-column label="手机号" min-width="140">
+            <template #default="{ row }">
+              <el-input v-model="row.phone" size="small" placeholder="短信通知" @blur="savePhone(row)" />
             </template>
           </el-table-column>
           <el-table-column label="启用" width="90" align="center">
@@ -48,23 +58,51 @@
               </el-select>
             </template>
           </el-table-column>
+          <el-table-column label="操作" width="110" align="center">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openResetPassword(row)">重置密码</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </el-card>
     </el-main>
+
+    <el-dialog v-model="resetDlg" title="重置用户密码" width="420px" destroy-on-close @closed="resetTarget = null">
+      <p v-if="resetTarget" class="tip">
+        正在为 {{ resetTarget.displayName }}（{{ resetTarget.username }}）设置新密码。
+      </p>
+      <el-form label-position="top">
+        <el-form-item label="新密码">
+          <el-input v-model="resetForm.password" type="password" show-password placeholder="至少 8 位" />
+        </el-form-item>
+        <el-form-item label="确认新密码">
+          <el-input v-model="resetForm.password2" type="password" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="resetDlg = false">取消</el-button>
+        <el-button type="primary" :loading="resetLoading" @click="submitAdminPassword">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import http from '../../api/http'
 import { useUserStore } from '../../stores/user'
+import { saveBlob } from '../../utils/download'
 
 const router = useRouter()
 const store = useUserStore()
 const list = ref([])
 const loading = ref(false)
+const resetDlg = ref(false)
+const resetLoading = ref(false)
+const resetTarget = ref(null)
+const resetForm = reactive({ password: '', password2: '' })
 
 async function load() {
   loading.value = true
@@ -73,7 +111,8 @@ async function load() {
     list.value = (data || []).map((u) => ({
       ...u,
       enabled: u.enabled !== false,
-      email: u.email || ''
+      email: u.email || '',
+      phone: u.phone || ''
     }))
   } catch (e) {
     ElMessage.error(e.message)
@@ -88,6 +127,7 @@ async function patch(row, body) {
     row.enabled = data.enabled !== false
     row.role = data.role
     row.email = data.email || ''
+    row.phone = data.phone || ''
     ElMessage.success('已保存')
   } catch (e) {
     ElMessage.error(e.message)
@@ -97,6 +137,48 @@ async function patch(row, body) {
 
 function saveEmail(row) {
   patch(row, { email: row.email || null })
+}
+
+function savePhone(row) {
+  patch(row, { phone: row.phone || null })
+}
+
+function openResetPassword(row) {
+  resetTarget.value = row
+  resetForm.password = ''
+  resetForm.password2 = ''
+  resetDlg.value = true
+}
+
+async function submitAdminPassword() {
+  if (!resetTarget.value) return
+  if (resetForm.password.length < 8) {
+    ElMessage.warning('新密码至少 8 位')
+    return
+  }
+  if (resetForm.password !== resetForm.password2) {
+    ElMessage.warning('两次密码不一致')
+    return
+  }
+  resetLoading.value = true
+  try {
+    await http.patch(`/admin/users/${resetTarget.value.id}`, { newPassword: resetForm.password })
+    ElMessage.success('密码已重置')
+    resetDlg.value = false
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    resetLoading.value = false
+  }
+}
+
+async function exportUsers() {
+  try {
+    const res = await http.get('/admin/users/export', { responseType: 'blob' })
+    saveBlob(res.data, 'users.xlsx')
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
 }
 
 function logout() {
@@ -150,5 +232,11 @@ onMounted(load)
   color: #86909c;
   font-size: 13px;
   margin-bottom: 12px;
+}
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 </style>

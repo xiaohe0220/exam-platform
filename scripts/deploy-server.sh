@@ -23,8 +23,22 @@ DB_USERNAME="${DB_USERNAME:-exam_user}"
 DB_PASSWORD="${DB_PASSWORD:-change_me}"
 
 # App config
-APP_JWT_SECRET="${APP_JWT_SECRET:-please_change_to_a_secure_secret_with_at_least_32_bytes}"
-APP_CORS_ALLOW_ALL_ORIGINS="${APP_CORS_ALLOW_ALL_ORIGINS:-true}"
+APP_JWT_SECRET="${APP_JWT_SECRET:-}"
+APP_CORS_ALLOW_ALL_ORIGINS="${APP_CORS_ALLOW_ALL_ORIGINS:-false}"
+APP_SEED_DEMO_DATA_ENABLED="${APP_SEED_DEMO_DATA_ENABLED:-false}"
+APP_PUBLIC_REGISTRATION_ENABLED="${APP_PUBLIC_REGISTRATION_ENABLED:-true}"
+APP_DEMO_PASSWORD_RESET_ENABLED="${APP_DEMO_PASSWORD_RESET_ENABLED:-false}"
+APP_BOOTSTRAP_ADMIN_USERNAME="${APP_BOOTSTRAP_ADMIN_USERNAME:-}"
+APP_BOOTSTRAP_ADMIN_PASSWORD="${APP_BOOTSTRAP_ADMIN_PASSWORD:-}"
+APP_AGENT_ENABLED="${APP_AGENT_ENABLED:-true}"
+APP_AGENT_API_KEY="${APP_AGENT_API_KEY:-}"
+APP_AGENT_BASE_URL="${APP_AGENT_BASE_URL:-https://api.openai.com/v1/chat/completions}"
+APP_AGENT_MODEL="${APP_AGENT_MODEL:-gpt-4o-mini}"
+APP_NOTIFY_SMS_WEBHOOK_URL="${APP_NOTIFY_SMS_WEBHOOK_URL:-}"
+SPRING_MAIL_HOST="${SPRING_MAIL_HOST:-}"
+SPRING_MAIL_PORT="${SPRING_MAIL_PORT:-}"
+SPRING_MAIL_USERNAME="${SPRING_MAIL_USERNAME:-}"
+SPRING_MAIL_PASSWORD="${SPRING_MAIL_PASSWORD:-}"
 
 MYSQL_ROOT_USER="${MYSQL_ROOT_USER:-root}"
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-}"
@@ -45,6 +59,32 @@ if [[ -z "$MYSQL_ROOT_PASSWORD" ]]; then
   echo "  export MYSQL_ROOT_PASSWORD='your_mysql_root_password'"
   exit 1
 fi
+
+if [[ ${#APP_JWT_SECRET} -lt 32 ]]; then
+  echo "APP_JWT_SECRET must be set and at least 32 bytes before running." >&2
+  echo "Example:"
+  echo "  export APP_JWT_SECRET='replace_with_a_random_secret_min_32_bytes'"
+  exit 1
+fi
+
+validate_mysql_identifier() {
+  local name="$1"
+  local value="$2"
+  if [[ ! "$value" =~ ^[A-Za-z0-9_]+$ ]]; then
+    echo "$name may only contain letters, numbers, and underscores: $value" >&2
+    exit 1
+  fi
+}
+
+mysql_quote_string() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\'/\\\'}"
+  printf "%s" "$value"
+}
+
+validate_mysql_identifier "DB_NAME" "$DB_NAME"
+validate_mysql_identifier "DB_USERNAME" "$DB_USERNAME"
 
 # Spring Boot 需要 JDK 17；Maven 会跟随 JAVA_HOME，避免落到系统默认 JDK 11
 JAVA_HOME_RESOLVED="${JAVA_HOME:-}"
@@ -73,7 +113,17 @@ mkdir -p "$WEB_ROOT"
 cp -r "$PROJECT_DIR/frontend/dist/"* "$WEB_ROOT/"
 
 echo "[3/7] Initializing database..."
-mysql -u"$MYSQL_ROOT_USER" -p"$MYSQL_ROOT_PASSWORD" < "$PROJECT_DIR/backend/scripts/mysql/create_database.sql"
+DB_PASSWORD_SQL="$(mysql_quote_string "$DB_PASSWORD")"
+mysql -u"$MYSQL_ROOT_USER" -p"$MYSQL_ROOT_PASSWORD" <<SQL
+CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD_SQL}';
+ALTER USER '${DB_USERNAME}'@'%' IDENTIFIED BY '${DB_PASSWORD_SQL}';
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USERNAME}'@'%';
+FLUSH PRIVILEGES;
+SQL
 
 echo "[4/7] Building backend JAR (JDK 17 + Maven)..."
 export JAVA_HOME="${JAVA_HOME_RESOLVED}"
@@ -106,6 +156,20 @@ Environment=DB_USERNAME=${DB_USERNAME}
 Environment=DB_PASSWORD=${DB_PASSWORD}
 Environment=APP_JWT_SECRET=${APP_JWT_SECRET}
 Environment=APP_CORS_ALLOW_ALL_ORIGINS=${APP_CORS_ALLOW_ALL_ORIGINS}
+Environment=APP_SEED_DEMO_DATA_ENABLED=${APP_SEED_DEMO_DATA_ENABLED}
+Environment=APP_PUBLIC_REGISTRATION_ENABLED=${APP_PUBLIC_REGISTRATION_ENABLED}
+Environment=APP_DEMO_PASSWORD_RESET_ENABLED=${APP_DEMO_PASSWORD_RESET_ENABLED}
+Environment=APP_BOOTSTRAP_ADMIN_USERNAME=${APP_BOOTSTRAP_ADMIN_USERNAME}
+Environment=APP_BOOTSTRAP_ADMIN_PASSWORD=${APP_BOOTSTRAP_ADMIN_PASSWORD}
+Environment=APP_AGENT_ENABLED=${APP_AGENT_ENABLED}
+Environment=APP_AGENT_API_KEY=${APP_AGENT_API_KEY}
+Environment=APP_AGENT_BASE_URL=${APP_AGENT_BASE_URL}
+Environment=APP_AGENT_MODEL=${APP_AGENT_MODEL}
+Environment=APP_NOTIFY_SMS_WEBHOOK_URL=${APP_NOTIFY_SMS_WEBHOOK_URL}
+Environment=SPRING_MAIL_HOST=${SPRING_MAIL_HOST}
+Environment=SPRING_MAIL_PORT=${SPRING_MAIL_PORT}
+Environment=SPRING_MAIL_USERNAME=${SPRING_MAIL_USERNAME}
+Environment=SPRING_MAIL_PASSWORD=${SPRING_MAIL_PASSWORD}
 ExecStart=${JAVA_HOME_RESOLVED}/bin/java -jar ${JAR_FILE}
 Restart=always
 RestartSec=5
@@ -115,8 +179,8 @@ WantedBy=multi-user.target
 EOF
 
 echo "[6/7] Writing nginx site config..."
-mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
-cat > "/etc/nginx/sites-available/${NGINX_SITE_NAME}" <<EOF
+mkdir -p /etc/nginx/conf.d
+cat > "/etc/nginx/conf.d/${NGINX_SITE_NAME}.conf" <<EOF
 server {
     listen 80;
     server_name ${DOMAIN};
@@ -138,7 +202,6 @@ server {
 }
 EOF
 
-ln -sf "/etc/nginx/sites-available/${NGINX_SITE_NAME}" "/etc/nginx/sites-enabled/${NGINX_SITE_NAME}"
 nginx -t
 
 echo "[7/7] Restarting services..."

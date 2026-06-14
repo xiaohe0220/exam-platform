@@ -79,6 +79,7 @@ public class AdminController {
             h.createCell(3).setCellValue("role");
             h.createCell(4).setCellValue("className");
             h.createCell(5).setCellValue("college");
+            h.createCell(6).setCellValue("phone");
             Row ex = sh.createRow(1);
             ex.createCell(0).setCellValue("2021999");
             ex.createCell(1).setCellValue("初始密码123");
@@ -86,6 +87,7 @@ public class AdminController {
             ex.createCell(3).setCellValue("STUDENT");
             ex.createCell(4).setCellValue("计算机2101");
             ex.createCell(5).setCellValue("计算机学院");
+            ex.createCell(6).setCellValue("13800000000");
             wb.write(bos);
             byte[] bytes = bos.toByteArray();
             return ResponseEntity.ok()

@@ -4,6 +4,7 @@ import com.campus.exam.domain.*;
 import com.campus.exam.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,9 +25,34 @@ public class DataInitializer {
             QuestionRepository questions,
             ExamRepository exams,
             ExamQuestionRepository examQuestions,
-            PasswordEncoder encoder) {
+            AcademicClassRepository academicClasses,
+            CourseRepository courses,
+            PasswordEncoder encoder,
+            @Value("${app.seed.demo-data-enabled:false}") boolean demoDataEnabled,
+            @Value("${app.seed.bootstrap-admin.username:}") String bootstrapAdminUsername,
+            @Value("${app.seed.bootstrap-admin.password:}") String bootstrapAdminPassword,
+            @Value("${app.seed.bootstrap-admin.display-name:系统管理员}") String bootstrapAdminDisplayName) {
         return args -> {
             if (users.count() > 0) {
+                return;
+            }
+            if (hasText(bootstrapAdminUsername) || hasText(bootstrapAdminPassword)) {
+                if (!hasText(bootstrapAdminUsername) || !hasText(bootstrapAdminPassword)) {
+                    throw new IllegalStateException("首个管理员引导需同时设置 APP_BOOTSTRAP_ADMIN_USERNAME 与 APP_BOOTSTRAP_ADMIN_PASSWORD");
+                }
+                if (bootstrapAdminPassword.length() < 12 || bootstrapAdminPassword.length() > 100) {
+                    throw new IllegalStateException("APP_BOOTSTRAP_ADMIN_PASSWORD 长度需在 12–100 位之间");
+                }
+                String username = bootstrapAdminUsername.trim();
+                String displayName = hasText(bootstrapAdminDisplayName)
+                        ? bootstrapAdminDisplayName.trim()
+                        : username;
+                users.save(user(username, bootstrapAdminPassword, displayName, UserRole.ADMIN, null, encoder));
+                log.info("Bootstrapped first admin account: {}", username);
+                return;
+            }
+            if (!demoDataEnabled) {
+                log.warn("No users found and demo seed is disabled. Set APP_BOOTSTRAP_ADMIN_USERNAME/PASSWORD once to create the first admin.");
                 return;
             }
             log.info("Seeding demo data...");
@@ -37,6 +63,10 @@ public class DataInitializer {
             users.save(admin);
             users.save(teacher);
             users.save(student);
+            academicClasses.save(academicClass("计算机2101", "计算机学院", "计算机科学与技术", "2021"));
+            academicClasses.save(academicClass("2024级1班", "通识教育学院", "人工智能通识", "2024"));
+            courses.save(course("AI-GE-001", "人工智能通识教育", "计算机学院", "张老师"));
+            courses.save(course("CS-BASIC", "计算机基础", "计算机学院", "张老师"));
 
             Long tid = teacher.getId();
 
@@ -140,5 +170,29 @@ public class DataInitializer {
         a.setClassName(className);
         a.setCollege("计算机学院");
         return a;
+    }
+
+    private static AcademicClass academicClass(String name, String college, String major, String grade) {
+        AcademicClass c = new AcademicClass();
+        c.setName(name);
+        c.setCollege(college);
+        c.setMajor(major);
+        c.setGrade(grade);
+        c.setEnabled(true);
+        return c;
+    }
+
+    private static Course course(String code, String name, String college, String teacherName) {
+        Course c = new Course();
+        c.setCode(code);
+        c.setName(name);
+        c.setCollege(college);
+        c.setTeacherName(teacherName);
+        c.setEnabled(true);
+        return c;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

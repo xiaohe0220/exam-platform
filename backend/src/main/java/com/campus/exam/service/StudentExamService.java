@@ -10,6 +10,7 @@ import com.campus.exam.web.dto.ExamSummaryDto;
 import com.campus.exam.web.dto.ObjectiveReviewItemDto;
 import com.campus.exam.web.dto.PageResponse;
 import com.campus.exam.web.dto.QuestionResponse;
+import com.campus.exam.web.dto.SecurityEventRequest;
 import com.campus.exam.web.dto.StudentPaperDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -24,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -99,19 +101,25 @@ public class StudentExamService {
         return PageResponse.of(slice, page, size, total);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ResponseStatusException.class)
     public ExamAttempt startOrResume(AuthenticatedUser user, Long examId) {
         requireStudent(user);
         Exam exam = examRepository.findById(examId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         UserAccount stu = userAccountRepository.findById(user.id()).orElseThrow();
-        if (!ExamService.isVisibleToStudent(exam, stu, Instant.now())) {
+        Instant now = Instant.now();
+        if (!ExamService.isVisibleToStudent(exam, stu, now)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "考试不可访问");
         }
 
         long taken = examAttemptRepository.countByExamIdAndUserId(examId, user.id());
         var inProgress = examAttemptRepository.findByExamIdAndUserIdAndStatus(examId, user.id(), AttemptStatus.IN_PROGRESS);
         if (inProgress.isPresent()) {
-            return inProgress.get();
+            ExamAttempt current = inProgress.get();
+            if (isAttemptExpired(exam, current, now)) {
+                finalizeSubmit(user, current, true, false);
+            } else {
+                return current;
+            }
         }
         if (taken >= exam.getMaxRetakes()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "已达到最大考试次数");
@@ -121,7 +129,7 @@ public class StudentExamService {
         a.setExamId(examId);
         a.setUserId(user.id());
         a.setStatus(AttemptStatus.IN_PROGRESS);
-        a.setStartedAt(Instant.now());
+        a.setStartedAt(now);
         a.setAnswersJson("{}");
         a.setSwitchCount(0);
         examAttemptRepository.save(a);
@@ -129,7 +137,7 @@ public class StudentExamService {
         return a;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ResponseStatusException.class)
     public ExamAttempt saveAnswers(AuthenticatedUser user, Long attemptId, Map<String, Object> body) {
         requireStudent(user);
         ExamAttempt a = examAttemptRepository.findById(attemptId)
@@ -139,6 +147,11 @@ public class StudentExamService {
         }
         if (a.getStatus() != AttemptStatus.IN_PROGRESS) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "已交卷");
+        }
+        Exam exam = examRepository.findById(a.getExamId()).orElseThrow();
+        if (isAttemptExpired(exam, a, Instant.now())) {
+            finalizeSubmit(user, a, true, false);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "考试已超时，系统已自动交卷");
         }
         Map<String, Object> answers = new LinkedHashMap<>(body);
         Object marked = answers.remove("markedQuestionIds");
@@ -207,6 +220,12 @@ public class StudentExamService {
         requireStudent(user);
         ExamAttempt a = loadOwnedAttempt(user, attemptId);
         Exam exam = examRepository.findById(a.getExamId()).orElseThrow();
+        if (a.getStatus() != AttemptStatus.IN_PROGRESS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "考试已结束");
+        }
+        if (isAttemptExpired(exam, a, Instant.now())) {
+            return finalizeSubmit(user, a, true, false);
+        }
         a.setSwitchCount(a.getSwitchCount() + 1);
         if (a.getSwitchCount() >= exam.getSwitchLimit()) {
             return finalizeSubmit(user, a, true, false);
@@ -215,10 +234,28 @@ public class StudentExamService {
     }
 
     @Transactional
+    public void reportSecurityEvent(AuthenticatedUser user, Long attemptId, SecurityEventRequest req) {
+        requireStudent(user);
+        ExamAttempt a = loadOwnedAttempt(user, attemptId);
+        String type = req.eventType() != null ? req.eventType().trim() : "UNKNOWN";
+        String detail = req.detail() != null ? req.detail().trim() : "";
+        if (type.length() > 80) {
+            type = type.substring(0, 80);
+        }
+        if (detail.length() > 500) {
+            detail = detail.substring(0, 500);
+        }
+        auditService.log(user.id(), "EXAM_SECURITY_EVENT",
+                "attempt=" + a.getId() + " exam=" + a.getExamId() + " type=" + type + " detail=" + detail);
+    }
+
+    @Transactional
     public ExamAttempt submit(AuthenticatedUser user, Long attemptId) {
         requireStudent(user);
         ExamAttempt a = loadOwnedAttempt(user, attemptId);
-        return finalizeSubmit(user, a, false, false);
+        Exam exam = examRepository.findById(a.getExamId()).orElseThrow();
+        boolean expired = isAttemptExpired(exam, a, Instant.now());
+        return finalizeSubmit(user, a, expired, false);
     }
 
     private ExamAttempt finalizeSubmit(AuthenticatedUser user, ExamAttempt a0, boolean auto, boolean teacherForce) {
@@ -259,7 +296,7 @@ public class StudentExamService {
         }
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ResponseStatusException.class)
     public StudentPaperDto loadPaper(AuthenticatedUser user, Long attemptId) {
         requireStudent(user);
         ExamAttempt att = loadOwnedAttempt(user, attemptId);
@@ -267,6 +304,10 @@ public class StudentExamService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "考试已结束");
         }
         Exam exam = examRepository.findById(att.getExamId()).orElseThrow();
+        if (isAttemptExpired(exam, att, Instant.now())) {
+            finalizeSubmit(user, att, true, false);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "考试已超时，系统已自动交卷");
+        }
 
         ObjectNode shuffleRoot;
         try {
@@ -369,6 +410,21 @@ public class StudentExamService {
         } catch (Exception e) {
             return Map.of();
         }
+    }
+
+    private static boolean isAttemptExpired(Exam exam, ExamAttempt attempt, Instant now) {
+        if (attempt.getStatus() != AttemptStatus.IN_PROGRESS) {
+            return false;
+        }
+        if (exam.getEndAt() != null && !now.isBefore(exam.getEndAt())) {
+            return true;
+        }
+        Integer durationMinutes = exam.getDurationMinutes();
+        if (durationMinutes != null && durationMinutes > 0 && attempt.getStartedAt() != null) {
+            Instant deadline = attempt.getStartedAt().plus(durationMinutes, ChronoUnit.MINUTES);
+            return !now.isBefore(deadline);
+        }
+        return false;
     }
 
     public AttemptResultDto getResult(AuthenticatedUser user, Long attemptId) {

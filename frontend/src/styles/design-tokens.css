@@ -1,60 +1,77 @@
 /**
- * 线上考试平台 · 设计 Token（极简 + 数据可视化）
- * 主色 #4A90E2 · 成功 #50C878 · 危险 #FF6B6B · 提示 #F5A623 · 背景 #F7F9FC
+ * 智能考试平台 · 统一设计 Token
+ * 面向高频使用的教务/教师/学生工作台：低噪声、清晰层级、状态色明确。
  */
 :root {
-  --ds-brand: #4a90e2;
-  --ds-success: #50c878;
-  --ds-danger: #ff6b6b;
-  --ds-warning: #f5a623;
-  --ds-bg: #f7f9fc;
-  --ds-surface: #ffffff;
-  --ds-text: #1f2937;
-  --ds-text-secondary: #6b7280;
-  --ds-border: rgba(15, 23, 42, 0.08);
-  --ds-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-  --ds-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --ds-radius: 10px;
-  --ds-radius-btn: 8px;
+  --ds-primary: #0f8b8d;
+  --ds-primary-strong: #086568;
+  --ds-primary-soft: rgba(15, 139, 141, 0.12);
+  --ds-accent: #ff6b4a;
+  --ds-accent-soft: rgba(255, 107, 74, 0.12);
+  --ds-info: #4361ee;
+  --ds-info-soft: rgba(67, 97, 238, 0.11);
+  --ds-success: #2fb86e;
+  --ds-success-soft: rgba(47, 184, 110, 0.12);
+  --ds-warning: #f2a93b;
+  --ds-warning-soft: rgba(242, 169, 59, 0.16);
+  --ds-danger: #d94b4b;
+  --ds-danger-soft: rgba(217, 75, 75, 0.12);
 
-  /* 与现有工程变量对齐 */
-  --campus-primary: var(--ds-brand);
-  --ep-color-primary: var(--ds-brand);
-  --el-color-primary: var(--ds-brand);
-  --campus-accent-soft: rgba(74, 144, 226, 0.12);
-  --campus-accent-mid: rgba(74, 144, 226, 0.35);
+  --ds-bg: #f4f7f6;
+  --ds-bg-warm: #fbf7f2;
+  --ds-surface: #ffffff;
+  --ds-surface-subtle: #f9fbfb;
+  --ds-text: #1b2430;
+  --ds-text-secondary: #687381;
+  --ds-text-muted: #9aa5b1;
+  --ds-border: rgba(27, 36, 48, 0.1);
+  --ds-border-strong: rgba(27, 36, 48, 0.16);
+
+  --ds-radius: 8px;
+  --ds-radius-sm: 6px;
+  --ds-shadow-sm: 0 1px 2px rgba(27, 36, 48, 0.05);
+  --ds-shadow-md: 0 12px 28px rgba(27, 36, 48, 0.08);
+  --ds-shadow-lg: 0 22px 60px rgba(27, 36, 48, 0.14);
+  --ds-ring: 0 0 0 3px rgba(15, 139, 141, 0.22);
+  --ds-transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease,
+    transform 0.18s ease;
+
+  --campus-primary: var(--ds-primary);
+  --campus-accent-soft: var(--ds-primary-soft);
+  --campus-accent-mid: rgba(15, 139, 141, 0.24);
   --campus-bg: var(--ds-bg);
   --campus-text: var(--ds-text);
   --campus-card: var(--ds-surface);
+  --el-color-primary: var(--ds-primary);
+  --ep-color-primary: var(--ds-primary);
 }
 
-/* 教务监控大屏 · 深色主题 */
 [data-theme='admin-dark'] {
-  --ds-bg: #0f1419;
-  --ds-surface: #1a2129;
-  --ds-text: #e8eaed;
-  --ds-text-secondary: #9aa0a6;
-  --ds-border: rgba(255, 255, 255, 0.08);
-  --ds-shadow-sm: 0 1px 0 rgba(255, 255, 255, 0.06);
-  --ds-shadow-md: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --ds-bg: #101417;
+  --ds-surface: #171d21;
+  --ds-surface-subtle: #1d252a;
+  --ds-text: #edf2f4;
+  --ds-text-secondary: #a9b4bd;
+  --ds-text-muted: #75828c;
+  --ds-border: rgba(255, 255, 255, 0.1);
+  --ds-border-strong: rgba(255, 255, 255, 0.18);
+  --ds-shadow-md: 0 18px 44px rgba(0, 0, 0, 0.32);
 }
 
-/**
- * 学生学习端 · 参考「实验室/测评」类界面：浅灰底、白卡片、红主操作、蓝选中态
- */
 .student-lab-theme {
-  --lab-bg: #f5f5f5;
+  --lab-bg: #f7f6f2;
   --lab-surface: #ffffff;
-  --lab-primary: #e64340;
-  --lab-primary-soft: rgba(230, 67, 64, 0.1);
-  --lab-blue: #5b8ff9;
-  --lab-blue-soft: rgba(91, 143, 249, 0.12);
-  --lab-text: #262626;
-  --lab-text-secondary: #8c8c8c;
-  --lab-border: #f0f0f0;
+  --lab-primary: #ff6b4a;
+  --lab-primary-soft: rgba(255, 107, 74, 0.12);
+  --lab-blue: #4361ee;
+  --lab-blue-soft: rgba(67, 97, 238, 0.11);
+  --lab-green: #0f8b8d;
+  --lab-green-soft: rgba(15, 139, 141, 0.12);
+  --lab-text: #1f2933;
+  --lab-text-secondary: #6b7280;
+  --lab-border: rgba(31, 41, 51, 0.1);
   --lab-radius: 8px;
-  /* Element Plus 学生端主色（按钮、链接） */
-  --el-color-primary: #e64340;
-  --campus-primary: #e64340;
+  --el-color-primary: var(--lab-primary);
+  --campus-primary: var(--lab-primary);
   --campus-accent-soft: var(--lab-primary-soft);
 }

@@ -1,47 +1,42 @@
 <template>
-  <el-container class="layout">
-    <el-aside width="240px" class="aside">
-      <div class="brand">
-        <div class="brand-title">教师工作台</div>
-        <div class="brand-sub">命题 · 组卷 · 阅卷 · 学情</div>
-      </div>
+  <el-container class="layout app-shell">
+    <el-aside width="252px" class="aside app-shell__aside">
+      <router-link to="/teacher/dashboard" class="brand">
+        <span class="brand-mark">T</span>
+        <span>
+          <strong>教师工作台</strong>
+          <small>Question · Exam · Review</small>
+        </span>
+      </router-link>
+
       <el-menu :default-active="route.path" router class="menu" :ellipsis="false">
-        <el-menu-item index="/teacher/dashboard">
-          <span class="mi"><span class="mi-icon">▣</span>数据概览</span>
-        </el-menu-item>
-        <el-menu-item index="/teacher/exams">
-          <span class="mi"><span class="mi-icon">▸</span>考试发布</span>
-        </el-menu-item>
-        <el-menu-item index="/teacher/questions">
-          <span class="mi"><span class="mi-icon">≡</span>题库管理</span>
-        </el-menu-item>
-        <el-menu-item index="/teacher/feedback">
-          <span class="mi"><span class="mi-icon">💬</span>学生留言</span>
-        </el-menu-item>
-        <el-menu-item index="/teacher/profile">
-          <span class="mi"><span class="mi-icon">◇</span>个人资料</span>
-        </el-menu-item>
-        <el-menu-item index="/teacher/settings">
-          <span class="mi"><span class="mi-icon">⚙</span>个性化设置</span>
+        <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
+          <span class="mi"><span class="mi-icon">{{ item.icon }}</span>{{ item.label }}</span>
         </el-menu-item>
       </el-menu>
-      <div class="aside-foot">
-        <p class="aside-tip">发布前请核对班级范围与考试时间窗；延长结束时间适用于集体补时。</p>
+
+      <div class="aside-card">
+        <span class="aside-card__label">本周工作</span>
+        <strong>{{ dashSummary || '等待数据同步' }}</strong>
       </div>
     </el-aside>
+
     <el-container>
-      <el-header class="header">
-        <div class="header-left">
-          <span class="title">考试管理</span>
-          <span class="crumb">{{ headerCrumb }}</span>
+      <el-header class="header app-shell__header">
+        <div>
+          <div class="eyebrow">Teacher Console</div>
+          <div class="title-row">
+            <h1>{{ headerTitle }}</h1>
+            <span>{{ headerCrumb }}</span>
+          </div>
         </div>
         <div class="right">
-          <span class="pill" v-if="dashSummary">{{ dashSummary }}</span>
-          <span class="name">{{ store.profile?.displayName }}</span>
+          <span class="name">{{ store.profile?.displayName || '教师' }}</span>
           <el-button link type="primary" @click="logout">退出</el-button>
         </div>
       </el-header>
-      <el-main class="main">
+
+      <el-main class="main ep-surface-cards">
         <router-view />
       </el-main>
     </el-container>
@@ -59,21 +54,33 @@ const router = useRouter()
 const store = useUserStore()
 const summary = ref(null)
 
-const headerCrumb = computed(() => {
+const menuItems = [
+  { path: '/teacher/dashboard', icon: 'D', label: '数据概览' },
+  { path: '/teacher/exams', icon: 'E', label: '考试发布' },
+  { path: '/teacher/questions', icon: 'Q', label: '题库管理' },
+  { path: '/teacher/feedback', icon: 'M', label: '学生留言' },
+  { path: '/teacher/profile', icon: 'P', label: '个人资料' },
+  { path: '/teacher/settings', icon: 'S', label: '外观设置' }
+]
+
+const routeMeta = computed(() => {
   const p = route.path
-  if (p.includes('/dashboard')) return '学情与图表'
-  if (p.includes('/exams')) return '试卷与发布'
-  if (p.includes('/questions')) return '题库'
-  if (p.includes('/feedback')) return '学生留言'
-  if (p.includes('/profile')) return '资料'
-  if (p.includes('/settings')) return '设置'
-  return ''
+  if (p.includes('/dashboard')) return ['教学数据中心', '班级表现与考试统计']
+  if (p.includes('/exams')) return ['考试发布', '组卷、发布、统计与阅卷']
+  if (p.includes('/questions')) return ['题库管理', '维护题目与知识点']
+  if (p.includes('/feedback')) return ['学生留言', '题目纠错与反馈处理']
+  if (p.includes('/profile')) return ['个人资料', '账号与基础信息']
+  if (p.includes('/settings')) return ['外观设置', '界面偏好']
+  return ['教师工作台', '']
 })
+
+const headerTitle = computed(() => routeMeta.value[0])
+const headerCrumb = computed(() => routeMeta.value[1])
 
 const dashSummary = computed(() => {
   const s = summary.value
   if (!s) return ''
-  return `题库 ${s.questionCount ?? '—'} 题 · 试卷 ${s.examTotal ?? '—'} 份`
+  return `题库 ${s.questionCount ?? '—'} · 试卷 ${s.examTotal ?? '—'}`
 })
 
 onMounted(async () => {
@@ -96,103 +103,153 @@ function logout() {
 .layout {
   min-height: 100vh;
 }
+
 .aside {
-  background: linear-gradient(180deg, #ffffff 0%, rgba(99, 102, 241, 0.06) 100%);
-  border-right: 1px solid var(--campus-accent-soft);
   display: flex;
   flex-direction: column;
+  padding: 18px 14px;
 }
+
 .brand {
-  padding: 22px 18px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 18px;
+  color: var(--ds-text);
+  text-decoration: none;
 }
-.brand-title {
-  font-weight: 800;
+
+.brand-mark,
+.mi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--ds-radius-sm);
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  color: #fff;
+  background: var(--ds-primary);
+}
+
+.brand strong {
+  display: block;
+  color: var(--ds-text);
   font-size: 16px;
-  color: var(--campus-primary);
 }
-.brand-sub {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #86909c;
+
+.brand small {
+  display: block;
+  margin-top: 3px;
+  color: var(--ds-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
 }
+
 .menu {
+  flex: 1;
   border-right: none;
   background: transparent;
-  flex: 1;
-  padding: 0 8px 12px;
-  --el-menu-active-color: var(--campus-primary);
-  --el-menu-hover-bg-color: var(--campus-accent-soft);
+  --el-menu-active-color: var(--ds-primary);
+  --el-menu-hover-bg-color: var(--ds-primary-soft);
 }
+
+.menu :deep(.el-menu-item) {
+  height: 42px;
+  margin: 3px 0;
+  border-radius: var(--ds-radius);
+  color: var(--ds-text-secondary);
+  font-weight: 700;
+}
+
+.menu :deep(.el-menu-item.is-active) {
+  color: var(--ds-primary);
+  background: var(--ds-primary-soft) !important;
+}
+
 .mi {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
+
 .mi-icon {
-  opacity: 0.55;
-  font-size: 13px;
-}
-.aside-foot {
-  padding: 12px 16px 20px;
-  border-top: 1px dashed rgba(15, 23, 42, 0.08);
-}
-.aside-tip {
-  margin: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--ds-primary);
+  background: rgba(15, 139, 141, 0.1);
   font-size: 11px;
-  line-height: 1.5;
-  color: #9ca3af;
 }
+
+.aside-card {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius);
+  background: var(--ds-surface-subtle);
+}
+
+.aside-card__label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ds-text-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.aside-card strong {
+  color: var(--ds-text);
+  font-size: 14px;
+}
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  border-bottom: 1px solid var(--campus-accent-soft);
-  height: 56px !important;
-  position: relative;
+  height: 72px !important;
+  padding: 0 24px;
 }
-.header::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #3b6cff, #6366f1, #7c3aed);
-  opacity: 0.85;
+
+.eyebrow {
+  color: var(--ds-primary);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
-.header-left {
+
+.title-row {
   display: flex;
   align-items: baseline;
   gap: 12px;
+  margin-top: 4px;
 }
-.title {
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--campus-primary);
+
+.title-row h1 {
+  margin: 0;
+  color: var(--ds-text);
+  font-size: 20px;
+  font-weight: 900;
 }
-.crumb {
+
+.title-row span,
+.name {
+  color: var(--ds-text-secondary);
   font-size: 13px;
-  color: #86909c;
 }
+
 .right {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.pill {
-  font-size: 12px;
-  color: #4e5969;
-  background: var(--campus-accent-soft);
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-.name {
-  color: #4e5969;
-  font-size: 14px;
-}
+
 .main {
-  background: linear-gradient(180deg, var(--campus-bg) 0%, #fff 40%);
   padding: 22px;
 }
 </style>

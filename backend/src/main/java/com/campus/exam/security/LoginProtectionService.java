@@ -7,7 +7,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 登录失败累计与短时锁定，降低暴力破解风险（内存实现，多实例需换 Redis 等）。
+ * Tracks login failures and applies a short in-memory lock to reduce brute-force risk.
+ * Multi-instance deployments should replace this with Redis or another shared store.
  */
 @Service
 public class LoginProtectionService {

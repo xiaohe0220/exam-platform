@@ -3,7 +3,13 @@
     <template #header>
       <div class="head">
         <span>题库</span>
-        <el-button type="primary" @click="openEdit()">新建题目</el-button>
+        <div class="head-actions">
+          <el-button plain @click="downloadTemplate">下载模板</el-button>
+          <el-upload :show-file-list="false" accept=".xlsx,.xls" :http-request="importQuestions">
+            <el-button :loading="importing">批量导入</el-button>
+          </el-upload>
+          <el-button type="primary" @click="openEdit()">新建题目</el-button>
+        </div>
       </div>
     </template>
 
@@ -132,10 +138,12 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import http from '../../api/http'
+import { saveBlob } from '../../utils/download'
 
 const rows = ref([])
 const dlg = ref(false)
 const saving = ref(false)
+const importing = ref(false)
 const editing = ref(null)
 const keyword = ref('')
 const folderFilter = ref('')
@@ -268,6 +276,37 @@ async function remove(row) {
   load()
 }
 
+async function downloadTemplate() {
+  try {
+    const res = await http.get('/teacher/questions/import-template', { responseType: 'blob' })
+    saveBlob(res.data, 'question_import_template.xlsx')
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
+}
+
+async function importQuestions(options) {
+  importing.value = true
+  const formData = new FormData()
+  formData.append('file', options.file)
+  try {
+    const { data } = await http.post('/teacher/questions/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    await load()
+    const msg = `导入完成：成功 ${data.created || 0}，跳过 ${data.skipped || 0}，失败 ${data.failed || 0}`
+    if (data.errors?.length) {
+      await ElMessageBox.alert(data.errors.join('\n'), msg, { type: 'warning' })
+    } else {
+      ElMessage.success(msg)
+    }
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    importing.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -279,6 +318,13 @@ onMounted(load)
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+}
+.head-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 .toolbar {
   margin-bottom: 12px;

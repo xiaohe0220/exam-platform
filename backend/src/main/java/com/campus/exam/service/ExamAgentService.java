@@ -2,6 +2,7 @@ package com.campus.exam.service;
 
 import com.campus.exam.config.AgentProperties;
 import com.campus.exam.web.dto.AgentChatResponse;
+import com.campus.exam.web.dto.AgentStatusDto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -69,6 +70,14 @@ public class ExamAgentService {
         }
     }
 
+    public AgentStatusDto status() {
+        String key = props.getApiKey();
+        return new AgentStatusDto(
+                props.isEnabled(),
+                key != null && !key.isBlank(),
+                props.getModel());
+    }
+
     private String buildRequestBody(String userMessage) throws Exception {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", props.getModel());
@@ -114,10 +123,10 @@ public class ExamAgentService {
             return "交卷后可在「成绩分析」查看得分与排名等信息（具体展示以教师发布为准）。客观题通常自动批阅，主观题需教师阅卷。";
         }
         if (containsAny(t, "注册", "学号", "工号")) {
-            return "在登录页可「注册账号」：学生使用学号、教师使用工号，自行设置密码。若提示已存在，说明该账号已注册。";
+            return "可在登录页自主注册学生或教师账号。请使用本人真实学号或工号，系统会按学号/工号唯一校验，确保一人一账号；若提示已存在，说明该学号/工号已经注册。";
         }
         if (containsAny(t, "密码", "忘记", "重置")) {
-            return "登录页提供「忘记密码」，可按学号/工号重置新密码。管理员账号需通过教务处理。";
+            return "已登录用户可在「个人资料」中修改密码。忘记密码时请联系教务管理员重置；演示环境可能会开放登录页重置入口。";
         }
         if (containsAny(t, "教师", "组卷", "题库", "阅卷")) {
             return "教师可在「题库管理」维护题目，在「考试发布」中组卷、发布与查看统计，并对主观题进行批阅。";

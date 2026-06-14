@@ -13,6 +13,7 @@ public record AdminUserListItemDto(
         String className,
         String college,
         String email,
+        String phone,
         boolean enabled
 ) {
     public static AdminUserListItemDto from(UserAccount u) {
@@ -25,6 +26,7 @@ public record AdminUserListItemDto(
                 u.getClassName(),
                 u.getCollege(),
                 u.getEmail(),
+                u.getPhone(),
                 en);
     }
 }

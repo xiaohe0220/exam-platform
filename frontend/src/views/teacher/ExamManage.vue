@@ -22,11 +22,13 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="460" fixed="right">
+      <el-table-column label="操作" width="560" fixed="right">
         <template #default="{ row }">
           <el-button v-if="row.status === 'DRAFT'" link type="primary" @click="publish(row)">发布</el-button>
           <el-button link @click="loadStats(row)">统计</el-button>
+          <el-button link type="primary" @click="openQuestionStats(row)">题目分析</el-button>
           <el-button link type="success" @click="viewAttempts(row)">答卷</el-button>
+          <el-button link @click="exportAttempts(row)">导出答卷</el-button>
           <el-button link @click="openRanking(row)">排名</el-button>
           <el-button link type="info" @click="openExamMeta(row)">考试设置</el-button>
           <el-button v-if="row.status === 'PUBLISHED'" link type="warning" @click="openExtend(row)">延长</el-button>
@@ -156,6 +158,27 @@
     </el-descriptions>
   </el-dialog>
 
+  <el-dialog v-model="dlgQuestionStats" title="题目分析" width="980px">
+    <div class="dialog-tools">
+      <span class="sub">{{ qStatsExam?.title || '' }}</span>
+      <el-button size="small" type="primary" plain @click="exportQuestionStats(qStatsExam)">导出题目分析</el-button>
+    </div>
+    <el-table v-loading="qStatsLoading" :data="qStatsRows" border size="small" max-height="520">
+      <el-table-column prop="questionId" label="ID" width="70" />
+      <el-table-column prop="title" label="题目" min-width="220" show-overflow-tooltip />
+      <el-table-column prop="type" label="题型" width="130" />
+      <el-table-column prop="chapter" label="章节" width="140" show-overflow-tooltip />
+      <el-table-column prop="knowledgePoint" label="知识点" width="140" show-overflow-tooltip />
+      <el-table-column prop="maxScore" label="分值" width="80" />
+      <el-table-column prop="answeredCount" label="作答" width="80" />
+      <el-table-column prop="correctCount" label="满分" width="80" />
+      <el-table-column label="正确率" width="100">
+        <template #default="{ row }">{{ pct(row.correctRate) }}</template>
+      </el-table-column>
+      <el-table-column prop="avgEarnedScore" label="均得分" width="90" />
+    </el-table>
+  </el-dialog>
+
   <el-dialog v-model="dlgGrade" title="批阅与答题明细" width="920px" destroy-on-close>
     <template v-if="detail">
       <p class="sub">
@@ -193,6 +216,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import http from '../../api/http'
 import { unwrapPage } from '../../api/paging'
+import { saveBlob } from '../../utils/download'
 
 const rows = ref([])
 const page = ref(1)
@@ -219,6 +243,10 @@ const rankingRows = ref([])
 const rankingLoading = ref(false)
 const dlgMeta = ref(false)
 const metaRow = ref(null)
+const dlgQuestionStats = ref(false)
+const qStatsExam = ref(null)
+const qStatsRows = ref([])
+const qStatsLoading = ref(false)
 const metaForm = reactive({
   rankingVisible: true,
   maxRetakes: 2,
@@ -269,6 +297,11 @@ function iso(d) {
 function formatIso(t) {
   if (!t) return '—'
   return new Date(t).toLocaleString()
+}
+
+function pct(v) {
+  if (v == null) return '—'
+  return `${(Number(v) * 100).toFixed(1)}%`
 }
 
 async function openRanking(row) {
@@ -392,9 +425,52 @@ async function submitRandom() {
 }
 
 async function publish(row) {
-  await http.post(`/teacher/exams/${row.id}/publish`)
-  ElMessage.success('已发布')
-  load()
+  try {
+    await ElMessageBox.confirm(`确认发布「${row.title}」？发布后目标班级学生将看到考试。`, '发布考试', {
+      type: 'warning',
+      confirmButtonText: '确认发布',
+      cancelButtonText: '取消'
+    })
+    await http.post(`/teacher/exams/${row.id}/publish`)
+    ElMessage.success('已发布')
+    load()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e.message)
+  }
+}
+
+async function exportAttempts(row) {
+  try {
+    const res = await http.get(`/teacher/exams/${row.id}/attempts/export`, { responseType: 'blob' })
+    saveBlob(res.data, `exam_${row.id}_attempts.xlsx`)
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
+}
+
+async function openQuestionStats(row) {
+  qStatsExam.value = row
+  qStatsRows.value = []
+  qStatsLoading.value = true
+  dlgQuestionStats.value = true
+  try {
+    const { data } = await http.get(`/teacher/exams/${row.id}/question-stats`)
+    qStatsRows.value = data || []
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    qStatsLoading.value = false
+  }
+}
+
+async function exportQuestionStats(row) {
+  if (!row) return
+  try {
+    const res = await http.get(`/teacher/exams/${row.id}/question-stats/export`, { responseType: 'blob' })
+    saveBlob(res.data, `exam_${row.id}_question_stats.xlsx`)
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
 }
 
 async function viewAttempts(row) {
@@ -504,6 +580,13 @@ onMounted(load)
   margin: 0 0 12px;
   color: #86909c;
   font-size: 13px;
+}
+.dialog-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 .pager-wrap {
   display: flex;

@@ -6,6 +6,7 @@ import com.campus.exam.security.AuthenticatedUser;
 import com.campus.exam.web.dto.AdminUserListItemDto;
 import com.campus.exam.web.dto.UserAdminPatchRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -14,9 +15,11 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminUserService {
 
     private final UserAccountRepository userAccountRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public AdminUserService(UserAccountRepository userAccountRepository) {
+    public AdminUserService(UserAccountRepository userAccountRepository, PasswordEncoder passwordEncoder) {
         this.userAccountRepository = userAccountRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -38,6 +41,17 @@ public class AdminUserService {
         if (req.email() != null) {
             String em = req.email().trim();
             u.setEmail(em.isEmpty() ? null : em);
+        }
+        if (req.phone() != null) {
+            String phone = req.phone().trim();
+            u.setPhone(phone.isEmpty() ? null : phone);
+        }
+        if (req.newPassword() != null) {
+            String p = req.newPassword();
+            if (p.length() < 8 || p.length() > 100) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "新密码长度需在 8–100 位之间");
+            }
+            u.setPasswordHash(passwordEncoder.encode(p));
         }
         return AdminUserListItemDto.from(userAccountRepository.save(u));
     }

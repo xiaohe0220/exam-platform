@@ -7,6 +7,8 @@ public record UserProfileDto(
         String role,
         String className,
         String college,
+        String email,
+        String phone,
         String personalNote,
         String settingsJson
 ) {

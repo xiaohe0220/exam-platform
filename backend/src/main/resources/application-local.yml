@@ -17,3 +17,8 @@ spring:
 app:
   redis:
     enabled: false
+  seed:
+    demo-data-enabled: true
+  auth:
+    public-registration-enabled: ${APP_PUBLIC_REGISTRATION_ENABLED:true}
+    demo-password-reset-enabled: ${APP_DEMO_PASSWORD_RESET_ENABLED:false}

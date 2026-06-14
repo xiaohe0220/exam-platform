@@ -32,6 +32,8 @@ export const useUserStore = defineStore('user', () => {
       role: data.role,
       className: data.className,
       college: data.college,
+      email: data.email,
+      phone: data.phone,
       personalNote: data.personalNote,
       settingsJson: data.settingsJson
     }
@@ -65,6 +67,8 @@ export const useUserStore = defineStore('user', () => {
       role: data.role,
       className: data.className,
       college: data.college,
+      email: data.email,
+      phone: data.phone,
       personalNote: data.personalNote,
       settingsJson: data.settingsJson
     }

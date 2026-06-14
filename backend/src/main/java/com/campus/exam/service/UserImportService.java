@@ -60,6 +60,7 @@ public class UserImportService {
                 String roleStr = trim(fmt.formatCellValue(row.getCell(3)));
                 String className = trim(fmt.formatCellValue(row.getCell(4)));
                 String college = trim(fmt.formatCellValue(row.getCell(5)));
+                String phone = trim(fmt.formatCellValue(row.getCell(6)));
                 if (username.isEmpty()) {
                     skipped++;
                     continue;
@@ -89,6 +90,7 @@ public class UserImportService {
                 u.setRole(role);
                 u.setClassName(className.isEmpty() ? null : className);
                 u.setCollege(college.isEmpty() ? null : college);
+                u.setPhone(phone.isEmpty() ? null : phone);
                 u.setEnabled(true);
                 userAccountRepository.save(u);
                 created++;

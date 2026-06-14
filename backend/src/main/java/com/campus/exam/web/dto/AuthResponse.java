@@ -8,6 +8,8 @@ public record AuthResponse(
         String role,
         String className,
         String college,
+        String email,
+        String phone,
         String personalNote,
         String settingsJson
 ) {
