@@ -26,4 +26,11 @@ public class AdminUserController {
             @RequestBody UserAdminPatchRequest req) {
         return adminUserService.patchUser(admin, userId, req);
     }
+
+    @DeleteMapping("/users/{userId}")
+    public void deleteUser(
+            @AuthenticationPrincipal AuthenticatedUser admin,
+            @PathVariable Long userId) {
+        adminUserService.deleteUser(admin, userId);
+    }
 }

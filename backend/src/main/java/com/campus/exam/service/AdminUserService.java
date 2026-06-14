@@ -1,10 +1,12 @@
 package com.campus.exam.service;
 
 import com.campus.exam.domain.UserAccount;
+import com.campus.exam.domain.UserRole;
 import com.campus.exam.repository.UserAccountRepository;
 import com.campus.exam.security.AuthenticatedUser;
 import com.campus.exam.web.dto.AdminUserListItemDto;
 import com.campus.exam.web.dto.UserAdminPatchRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -54,5 +56,34 @@ public class AdminUserService {
             u.setPasswordHash(passwordEncoder.encode(p));
         }
         return AdminUserListItemDto.from(userAccountRepository.save(u));
+    }
+
+    @Transactional
+    public void deleteUser(AuthenticatedUser admin, Long userId) {
+        UserAccount u = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        if (userId.equals(admin.id())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能删除当前登录账号");
+        }
+        if (isAdminRole(u.getRole()) && adminAccountCount() <= 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "至少保留一个教务管理员账号");
+        }
+
+        try {
+            userAccountRepository.delete(u);
+            userAccountRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该账号已有业务记录，建议先禁用账号保留历史数据");
+        }
+    }
+
+    private long adminAccountCount() {
+        return userAccountRepository.countByRole(UserRole.ADMIN)
+                + userAccountRepository.countByRole(UserRole.COLLEGE_ADMIN);
+    }
+
+    private static boolean isAdminRole(UserRole role) {
+        return role == UserRole.ADMIN || role == UserRole.COLLEGE_ADMIN;
     }
 }

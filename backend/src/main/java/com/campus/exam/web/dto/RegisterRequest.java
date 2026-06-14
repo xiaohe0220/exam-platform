@@ -18,7 +18,9 @@ public record RegisterRequest(
         @NotBlank
         @Pattern(regexp = "STUDENT|TEACHER", message = "角色必须为学生或教师")
         String role,
-        @Size(max = 100)
+        @NotBlank
+        @Size(min = 2, max = 20)
+        @Pattern(regexp = "^[\\u4e00-\\u9fa5·]+$", message = "姓名必须为汉字")
         String displayName,
         /** Optional student class name. */
         @Size(max = 100)

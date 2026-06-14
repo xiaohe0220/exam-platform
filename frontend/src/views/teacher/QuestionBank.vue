@@ -16,7 +16,7 @@
     <el-space wrap class="toolbar">
       <el-input
         v-model="keyword"
-        placeholder="搜索题干 / 知识点 / 文件夹"
+        placeholder="搜索题干 / 知识点 / 文件夹 / 解析"
         clearable
         style="width: 280px"
       />
@@ -30,12 +30,36 @@
         <el-option label="填空题" value="FILL_BLANK" />
         <el-option label="简答题" value="SHORT_ANSWER" />
       </el-select>
-      <el-radio-group v-model="viewMode">
-        <el-radio-button label="grouped">分组视图</el-radio-button>
-        <el-radio-button label="list">列表视图</el-radio-button>
-      </el-radio-group>
+      <el-select v-model="knowledgeFilter" placeholder="按知识点筛选" clearable filterable style="width: 200px">
+        <el-option v-for="k in knowledgeOptions" :key="k" :label="k" :value="k" />
+      </el-select>
+      <el-select v-model="difficultyFilter" placeholder="按难度筛选" clearable style="width: 150px">
+        <el-option v-for="n in 5" :key="n" :label="`${n} 星难度`" :value="String(n)" />
+      </el-select>
+      <el-select v-model="sortMode" placeholder="排序" style="width: 160px">
+        <el-option label="最近创建" value="createdDesc" />
+        <el-option label="难度从低到高" value="difficultyAsc" />
+        <el-option label="难度从高到低" value="difficultyDesc" />
+        <el-option label="文件夹排序" value="folderAsc" />
+      </el-select>
+      <el-segmented
+        v-model="viewMode"
+        :options="[
+          { label: '分组', value: 'grouped' },
+          { label: '列表', value: 'list' }
+        ]"
+      />
+      <el-button plain @click="clearFilters">清空筛选</el-button>
       <el-button @click="load">刷新</el-button>
     </el-space>
+    <div class="filter-summary">
+      <span>共 {{ rows.length }} 题，当前显示 {{ filteredRows.length }} 题</span>
+      <el-tag size="small" effect="plain">单选 {{ questionStats.SINGLE_CHOICE || 0 }}</el-tag>
+      <el-tag size="small" effect="plain">多选 {{ questionStats.MULTIPLE_CHOICE || 0 }}</el-tag>
+      <el-tag size="small" effect="plain">判断 {{ questionStats.TRUE_FALSE || 0 }}</el-tag>
+      <el-tag size="small" effect="plain">填空 {{ questionStats.FILL_BLANK || 0 }}</el-tag>
+      <el-tag size="small" effect="plain">简答 {{ questionStats.SHORT_ANSWER || 0 }}</el-tag>
+    </div>
 
     <div v-if="viewMode === 'grouped'">
       <el-collapse v-model="activeGroups" class="grouped">
@@ -135,11 +159,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import http from '../../api/http'
 import { saveBlob } from '../../utils/download'
+import { useUserStore } from '../../stores/user'
+import { parseSettingsJson } from '../../composables/useTheme'
 
+const store = useUserStore()
 const rows = ref([])
 const dlg = ref(false)
 const saving = ref(false)
@@ -148,7 +175,10 @@ const editing = ref(null)
 const keyword = ref('')
 const folderFilter = ref('')
 const typeFilter = ref('')
-const viewMode = ref('grouped')
+const knowledgeFilter = ref('')
+const difficultyFilter = ref('')
+const sortMode = ref('createdDesc')
+const viewMode = ref(parseSettingsJson(store.profile?.settingsJson).questionBankView)
 const activeGroups = ref([])
 const form = reactive({
   type: 'SINGLE_CHOICE',
@@ -170,15 +200,39 @@ const folderOptions = computed(() =>
   [...new Set(rows.value.map(r => (r.chapter || '').trim()).filter(Boolean))]
 )
 
+const knowledgeOptions = computed(() =>
+  [...new Set(rows.value.map(r => (r.knowledgePoint || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b))
+)
+
+const questionStats = computed(() =>
+  rows.value.reduce((acc, r) => {
+    acc[r.type] = (acc[r.type] || 0) + 1
+    return acc
+  }, {})
+)
+
 const filteredRows = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
-  return rows.value.filter(r => {
+  const filtered = rows.value.filter(r => {
     if (folderFilter.value && (r.chapter || '') !== folderFilter.value) return false
     if (typeFilter.value && r.type !== typeFilter.value) return false
+    if (knowledgeFilter.value && (r.knowledgePoint || '') !== knowledgeFilter.value) return false
+    if (difficultyFilter.value && String(r.difficulty || '') !== difficultyFilter.value) return false
     if (!kw) return true
-    return [r.title, r.chapter, r.knowledgePoint]
+    return [r.title, r.chapter, r.knowledgePoint, r.answerAnalysis]
       .filter(Boolean)
       .some(v => String(v).toLowerCase().includes(kw))
+  })
+  return filtered.sort((a, b) => {
+    if (sortMode.value === 'difficultyAsc') return (a.difficulty || 0) - (b.difficulty || 0)
+    if (sortMode.value === 'difficultyDesc') return (b.difficulty || 0) - (a.difficulty || 0)
+    if (sortMode.value === 'folderAsc') {
+      return String(a.chapter || '').localeCompare(String(b.chapter || ''))
+        || String(a.knowledgePoint || '').localeCompare(String(b.knowledgePoint || ''))
+        || (b.id || 0) - (a.id || 0)
+    }
+    return (b.id || 0) - (a.id || 0)
   })
 })
 
@@ -219,6 +273,15 @@ async function load() {
   const { data } = await http.get('/teacher/questions')
   rows.value = data
   activeGroups.value = groupedRows.value.slice(0, 8).map(g => g.key)
+}
+
+function clearFilters() {
+  keyword.value = ''
+  folderFilter.value = ''
+  typeFilter.value = ''
+  knowledgeFilter.value = ''
+  difficultyFilter.value = ''
+  sortMode.value = 'createdDesc'
 }
 
 function openEdit(row) {
@@ -307,6 +370,14 @@ async function importQuestions(options) {
   }
 }
 
+watch(
+  () => store.profile?.settingsJson,
+  (v) => {
+    const preferred = parseSettingsJson(v).questionBankView
+    if (preferred && preferred !== viewMode.value) viewMode.value = preferred
+  }
+)
+
 onMounted(load)
 </script>
 
@@ -328,6 +399,15 @@ onMounted(load)
 }
 .toolbar {
   margin-bottom: 12px;
+}
+.filter-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  color: #6b7280;
+  font-size: 13px;
 }
 .grouped :deep(.el-collapse-item__header) {
   font-weight: 600;

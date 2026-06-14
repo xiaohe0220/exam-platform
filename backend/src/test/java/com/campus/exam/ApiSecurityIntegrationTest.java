@@ -55,7 +55,8 @@ class ApiSecurityIntegrationTest {
                                 {
                                   "username": "newstudent",
                                   "password": "student123",
-                                  "role": "STUDENT"
+                                  "role": "STUDENT",
+                                  "displayName": "张三"
                                 }
                                 """))
                 .andExpect(status().isForbidden());

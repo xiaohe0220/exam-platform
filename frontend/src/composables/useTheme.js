@@ -1,19 +1,39 @@
 const DEFAULT_PRIMARY = '#4a90e2'
 
-export function applyThemeFromSettings(settingsJson) {
-  let primary = DEFAULT_PRIMARY
-  let compact = false
+export const DEFAULT_SETTINGS = {
+  primaryColor: DEFAULT_PRIMARY,
+  compact: false,
+  questionBankView: 'grouped',
+  assistantAutoOpen: false
+}
+
+export function parseSettingsJson(settingsJson) {
   try {
     const o = settingsJson ? JSON.parse(settingsJson) : {}
-    if (o.primaryColor && /^#[0-9A-Fa-f]{6}$/.test(o.primaryColor)) {
-      primary = o.primaryColor
-    }
-    if (typeof o.compact === 'boolean') {
-      compact = o.compact
+    return {
+      ...DEFAULT_SETTINGS,
+      ...o,
+      primaryColor: /^#[0-9A-Fa-f]{6}$/.test(o.primaryColor || '')
+        ? o.primaryColor
+        : DEFAULT_SETTINGS.primaryColor,
+      compact: typeof o.compact === 'boolean' ? o.compact : DEFAULT_SETTINGS.compact,
+      questionBankView: ['grouped', 'list'].includes(o.questionBankView)
+        ? o.questionBankView
+        : DEFAULT_SETTINGS.questionBankView,
+      assistantAutoOpen:
+        typeof o.assistantAutoOpen === 'boolean'
+          ? o.assistantAutoOpen
+          : DEFAULT_SETTINGS.assistantAutoOpen
     }
   } catch {
-    /* ignore */
+    return { ...DEFAULT_SETTINGS }
   }
+}
+
+export function applyThemeFromSettings(settingsJson) {
+  const settings = parseSettingsJson(settingsJson)
+  const primary = settings.primaryColor
+  const compact = settings.compact
   const root = document.documentElement
   root.style.setProperty('--campus-primary', primary)
   root.style.setProperty('--ep-color-primary', primary)
@@ -31,9 +51,15 @@ function hexToRgba(hex, a) {
   return `rgba(${r},${g},${b},${a})`
 }
 
-export function buildSettingsJson(partial) {
+export function buildSettingsJson(partial = {}) {
   return JSON.stringify({
+    ...DEFAULT_SETTINGS,
+    ...partial,
     primaryColor: partial.primaryColor ?? DEFAULT_PRIMARY,
-    compact: Boolean(partial.compact)
+    compact: Boolean(partial.compact),
+    questionBankView: ['grouped', 'list'].includes(partial.questionBankView)
+      ? partial.questionBankView
+      : DEFAULT_SETTINGS.questionBankView,
+    assistantAutoOpen: Boolean(partial.assistantAutoOpen)
   })
 }

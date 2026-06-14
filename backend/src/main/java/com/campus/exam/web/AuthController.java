@@ -87,8 +87,7 @@ public class AuthController {
         UserAccount u = new UserAccount();
         u.setUsername(uname);
         u.setPasswordHash(passwordEncoder.encode(req.password()));
-        String dn = req.displayName();
-        u.setDisplayName(StringUtils.hasText(dn) ? dn.trim() : uname);
+        u.setDisplayName(req.displayName().trim());
         u.setRole(role);
         if (role == UserRole.STUDENT) {
             u.setClassName(StringUtils.hasText(req.className()) ? req.className().trim() : null);

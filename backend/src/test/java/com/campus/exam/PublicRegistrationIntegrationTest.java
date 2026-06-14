@@ -32,10 +32,22 @@ class PublicRegistrationIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "username": "SELF001",
+                                  "username": "SELF_BAD",
                                   "password": "student123",
                                   "role": "STUDENT",
                                   "displayName": "Self Student"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "SELF001",
+                                  "password": "student123",
+                                  "role": "STUDENT",
+                                  "displayName": "张三"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -50,7 +62,7 @@ class PublicRegistrationIntegrationTest {
                                   "username": "self001",
                                   "password": "student123",
                                   "role": "STUDENT",
-                                  "displayName": "Duplicate Student"
+                                  "displayName": "李四"
                                 }
                                 """))
                 .andExpect(status().isConflict());

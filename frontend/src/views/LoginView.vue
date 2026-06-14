@@ -105,7 +105,7 @@
     <PublicFooter />
 
     <el-dialog v-model="dlgReg" title="自主注册" width="500px" destroy-on-close @closed="resetReg">
-      <p class="dlg-tip">请使用本人真实学号或工号注册。该编号是唯一身份标识，已注册后不能再次创建账号。</p>
+      <p class="dlg-tip">请使用本人真实学号或工号注册。姓名必填且仅支持汉字，该编号是唯一身份标识。</p>
       <el-form label-position="top">
         <el-form-item label="身份">
           <el-radio-group v-model="reg.role">
@@ -113,15 +113,23 @@
             <el-radio-button label="TEACHER">教师</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item :label="reg.role === 'STUDENT' ? '学号' : '工号'">
+        <el-form-item :label="reg.role === 'STUDENT' ? '学号（必填）' : '工号（必填）'">
           <el-input
             v-model.trim="reg.username"
             :placeholder="reg.role === 'STUDENT' ? '请输入本人学号' : '请输入本人工号'"
             autocomplete="username"
+            clearable
+            maxlength="64"
           />
         </el-form-item>
-        <el-form-item label="姓名">
-          <el-input v-model.trim="reg.displayName" placeholder="不填则默认使用账号名" />
+        <el-form-item label="姓名（必填，仅汉字）">
+          <el-input
+            v-model.trim="reg.displayName"
+            placeholder="请输入真实中文姓名"
+            clearable
+            maxlength="20"
+            show-word-limit
+          />
         </el-form-item>
         <el-form-item v-if="reg.role === 'STUDENT'" label="班级">
           <el-input v-model.trim="reg.className" placeholder="如：计算机2101" />
@@ -197,6 +205,8 @@ const reg = reactive({
 const dlgForgot = ref(false)
 const forgotLoading = ref(false)
 const forgot = reactive({ username: '', password: '', password2: '' })
+const accountPattern = /^[a-zA-Z0-9._-]{3,64}$/
+const chineseNamePattern = /^[\u4e00-\u9fa5·]{2,20}$/
 
 const canSubmit = computed(() => form.username.trim().length > 0 && form.password.length > 0)
 const registrationText = computed(() =>
@@ -277,6 +287,18 @@ async function submitRegister() {
     ElMessage.warning('请填写学号或工号')
     return
   }
+  if (!accountPattern.test(reg.username)) {
+    ElMessage.warning('学号/工号需为 3-64 位字母、数字、点、下划线或短横线')
+    return
+  }
+  if (!reg.displayName) {
+    ElMessage.warning('请填写姓名')
+    return
+  }
+  if (!chineseNamePattern.test(reg.displayName)) {
+    ElMessage.warning('姓名必须为 2-20 个汉字')
+    return
+  }
   if (reg.password.length < 8) {
     ElMessage.warning('密码至少 8 位')
     return
@@ -291,7 +313,7 @@ async function submitRegister() {
       username: reg.username,
       password: reg.password,
       role: reg.role,
-      displayName: reg.displayName || undefined,
+      displayName: reg.displayName,
       className: reg.className || undefined,
       college: reg.college || undefined
     })

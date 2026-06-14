@@ -22,7 +22,22 @@
           </div>
         </template>
         <p class="tip">可禁用异常账号、调整角色（勿随意改管理员账号）。</p>
-        <el-table v-loading="loading" :data="list" border stripe size="small">
+        <div class="toolbar">
+          <el-input
+            v-model.trim="keyword"
+            clearable
+            placeholder="搜索账号 / 姓名 / 班级"
+            style="width: 260px"
+          />
+          <el-select v-model="roleFilter" clearable placeholder="筛选角色" style="width: 180px">
+            <el-option label="学生" value="STUDENT" />
+            <el-option label="教师" value="TEACHER" />
+            <el-option label="教务" value="COLLEGE_ADMIN" />
+            <el-option label="管理员" value="ADMIN" />
+          </el-select>
+          <span class="count">显示 {{ filteredList.length }} / {{ list.length }} 个账号</span>
+        </div>
+        <el-table v-loading="loading" :data="filteredList" border stripe size="small">
           <el-table-column prop="id" label="ID" width="70" />
           <el-table-column prop="username" label="账号" width="120" />
           <el-table-column prop="displayName" label="姓名" width="120" />
@@ -58,9 +73,17 @@
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="110" align="center">
+          <el-table-column label="操作" width="190" align="center" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openResetPassword(row)">重置密码</el-button>
+              <el-button
+                link
+                type="danger"
+                :disabled="row.id === store.profile?.id"
+                @click="deleteUser(row)"
+              >
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -88,9 +111,9 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import http from '../../api/http'
 import { useUserStore } from '../../stores/user'
 import { saveBlob } from '../../utils/download'
@@ -99,10 +122,23 @@ const router = useRouter()
 const store = useUserStore()
 const list = ref([])
 const loading = ref(false)
+const keyword = ref('')
+const roleFilter = ref('')
 const resetDlg = ref(false)
 const resetLoading = ref(false)
 const resetTarget = ref(null)
 const resetForm = reactive({ password: '', password2: '' })
+
+const filteredList = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  return list.value.filter((u) => {
+    if (roleFilter.value && u.role !== roleFilter.value) return false
+    if (!kw) return true
+    return [u.username, u.displayName, u.className, u.email, u.phone]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(kw))
+  })
+})
 
 async function load() {
   loading.value = true
@@ -172,6 +208,31 @@ async function submitAdminPassword() {
   }
 }
 
+async function deleteUser(row) {
+  if (row.id === store.profile?.id) {
+    ElMessage.warning('不能删除当前登录账号')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确认删除账号 ${row.displayName || row.username}（${row.username}）？该操作不可撤销。`,
+      '删除账号',
+      {
+        type: 'warning',
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+    await http.delete(`/admin/users/${row.id}`)
+    ElMessage.success('账号已删除')
+    await load()
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error(e.message)
+  }
+}
+
 async function exportUsers() {
   try {
     const res = await http.get('/admin/users/export', { responseType: 'blob' })
@@ -232,6 +293,17 @@ onMounted(load)
   color: #86909c;
   font-size: 13px;
   margin-bottom: 12px;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.count {
+  color: #86909c;
+  font-size: 13px;
 }
 .head {
   display: flex;
