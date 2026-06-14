@@ -599,8 +599,8 @@ onUnmounted(() => {
 .exam-aside {
   width: 220px;
   flex-shrink: 0;
-  position: sticky;
-  top: 88px;
+  position: relative;
+  top: 0;
   align-self: flex-start;
   padding: 14px;
   background: var(--exam-card);

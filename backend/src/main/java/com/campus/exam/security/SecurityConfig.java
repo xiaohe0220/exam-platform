@@ -60,6 +60,7 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/reset-password",
                                 "/api/auth/capabilities",
+                                "/api/auth/registration-options",
                                 "/api/health")
                         .permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

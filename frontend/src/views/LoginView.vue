@@ -108,7 +108,7 @@
       <p class="dlg-tip">请使用本人真实学号或工号注册。姓名必填且仅支持汉字，该编号是唯一身份标识。</p>
       <el-form label-position="top">
         <el-form-item label="身份">
-          <el-radio-group v-model="reg.role">
+          <el-radio-group v-model="reg.role" @change="onRoleChange">
             <el-radio-button label="STUDENT">学生</el-radio-button>
             <el-radio-button label="TEACHER">教师</el-radio-button>
           </el-radio-group>
@@ -132,10 +132,41 @@
           />
         </el-form-item>
         <el-form-item v-if="reg.role === 'STUDENT'" label="班级">
-          <el-input v-model.trim="reg.className" placeholder="如：计算机2101" />
+          <el-select
+            v-model="reg.className"
+            :loading="registrationLoading"
+            filterable
+            placeholder="请选择教务发布的班级"
+            style="width: 100%"
+            @change="onClassChange"
+          >
+            <el-option
+              v-for="cls in regOptions.classes"
+              :key="cls.id"
+              :label="classOptionLabel(cls)"
+              :value="cls.name"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="学院">
-          <el-input v-model.trim="reg.college" placeholder="如：计算机学院" />
+          <el-select
+            v-model="reg.college"
+            :disabled="reg.role === 'STUDENT'"
+            :loading="registrationLoading"
+            filterable
+            placeholder="请选择教务发布的学院"
+            style="width: 100%"
+          >
+            <el-option v-for="college in regOptions.colleges" :key="college" :label="college" :value="college" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="reg.role === 'STUDENT'" label="教师邀请码">
+          <el-input
+            v-model.trim="reg.inviteCode"
+            placeholder="请输入教师提供的邀请码"
+            clearable
+            maxlength="64"
+          />
         </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="reg.password" type="password" show-password placeholder="至少 8 位" />
@@ -189,6 +220,11 @@ const caps = reactive({
   demoPasswordResetEnabled: false,
   demoDataEnabled: false
 })
+const registrationLoading = ref(false)
+const regOptions = reactive({
+  classes: [],
+  colleges: []
+})
 
 const dlgReg = ref(false)
 const regLoading = ref(false)
@@ -198,6 +234,7 @@ const reg = reactive({
   displayName: '',
   className: '',
   college: '',
+  inviteCode: '',
   password: '',
   password2: ''
 })
@@ -211,14 +248,15 @@ const chineseNamePattern = /^[\u4e00-\u9fa5·]{2,20}$/
 const canSubmit = computed(() => form.username.trim().length > 0 && form.password.length > 0)
 const registrationText = computed(() =>
   caps.publicRegistrationEnabled
-    ? '已开放自主注册，学号/工号唯一'
+    ? '已开放自主注册，学生需教师邀请码'
     : '当前未开放自主注册'
 )
 
-function openRegister() {
+async function openRegister() {
   if (!caps.publicRegistrationEnabled) return
   resetReg()
   dlgReg.value = true
+  await loadRegistrationOptions()
 }
 
 function resetReg() {
@@ -227,8 +265,25 @@ function resetReg() {
   reg.displayName = ''
   reg.className = ''
   reg.college = ''
+  reg.inviteCode = ''
   reg.password = ''
   reg.password2 = ''
+}
+
+function onRoleChange() {
+  reg.className = ''
+  reg.college = ''
+  reg.inviteCode = ''
+  loadRegistrationOptions()
+}
+
+function classOptionLabel(cls) {
+  return `${cls.name}${cls.college ? ' · ' + cls.college : ''}`
+}
+
+function onClassChange() {
+  const found = regOptions.classes.find((cls) => cls.name === reg.className)
+  reg.college = found?.college || ''
 }
 
 function openForgot() {
@@ -252,6 +307,23 @@ async function loadCapabilities() {
     caps.demoDataEnabled = data.demoDataEnabled === true
   } catch {
     /* keep secure defaults */
+  }
+}
+
+async function loadRegistrationOptions() {
+  if (registrationLoading.value) return
+  registrationLoading.value = true
+  try {
+    const { data } = await http.get('/auth/registration-options')
+    regOptions.classes = data.classes || []
+    regOptions.colleges = data.colleges || []
+    if (reg.role === 'STUDENT' && reg.className) {
+      onClassChange()
+    }
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    registrationLoading.value = false
   }
 }
 
@@ -299,6 +371,23 @@ async function submitRegister() {
     ElMessage.warning('姓名必须为 2-20 个汉字')
     return
   }
+  if (reg.role === 'STUDENT') {
+    if (!regOptions.classes.length) {
+      ElMessage.warning('暂无教务发布的班级，请联系教务先维护班级')
+      return
+    }
+    if (!reg.className || !reg.college) {
+      ElMessage.warning('请选择教务发布的班级和学院')
+      return
+    }
+    if (!reg.inviteCode) {
+      ElMessage.warning('请输入教师邀请码')
+      return
+    }
+  } else if (!reg.college) {
+    ElMessage.warning('请选择教务发布的学院')
+    return
+  }
   if (reg.password.length < 8) {
     ElMessage.warning('密码至少 8 位')
     return
@@ -315,7 +404,8 @@ async function submitRegister() {
       role: reg.role,
       displayName: reg.displayName,
       className: reg.className || undefined,
-      college: reg.college || undefined
+      college: reg.college || undefined,
+      inviteCode: reg.role === 'STUDENT' ? reg.inviteCode : undefined
     })
     ElMessage.success('注册成功')
     dlgReg.value = false

@@ -16,4 +16,6 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
     List<UserAccount> findByRole(com.campus.exam.domain.UserRole role);
 
     long countByRole(com.campus.exam.domain.UserRole role);
+
+    Optional<UserAccount> findByIdAndRole(Long id, com.campus.exam.domain.UserRole role);
 }

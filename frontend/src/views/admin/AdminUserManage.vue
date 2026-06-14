@@ -18,7 +18,10 @@
         <template #header>
           <div class="head">
             <span class="h">账号列表</span>
-            <el-button size="small" type="primary" plain @click="exportUsers">导出用户</el-button>
+            <div class="head-actions">
+              <el-button size="small" type="primary" plain @click="openInviteManager">教师邀请码</el-button>
+              <el-button size="small" type="primary" plain @click="exportUsers">导出用户</el-button>
+            </div>
           </div>
         </template>
         <p class="tip">可禁用异常账号、调整角色（勿随意改管理员账号）。</p>
@@ -73,9 +76,12 @@
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="190" align="center" fixed="right">
+          <el-table-column label="操作" width="280" align="center" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openResetPassword(row)">重置密码</el-button>
+              <el-button v-if="row.role === 'TEACHER'" link type="success" @click="generateInvite(row)">
+                生成邀请码
+              </el-button>
               <el-button
                 link
                 type="danger"
@@ -107,6 +113,34 @@
         <el-button type="primary" :loading="resetLoading" @click="submitAdminPassword">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="inviteDlg" title="教师邀请码" width="820px" destroy-on-close @opened="loadInvites">
+      <p class="tip">学生自主注册时必须填写教师邀请码。邀请码由教务生成，可按教师追踪使用次数。</p>
+      <el-table v-loading="inviteLoading" :data="inviteRows" border stripe size="small" max-height="420">
+        <el-table-column prop="code" label="邀请码" width="140" />
+        <el-table-column prop="teacherName" label="教师" width="120" />
+        <el-table-column prop="college" label="学院" min-width="140" show-overflow-tooltip />
+        <el-table-column label="使用次数" width="110">
+          <template #default="{ row }">{{ row.usedCount || 0 }} / {{ row.maxUses || '不限' }}</template>
+        </el-table-column>
+        <el-table-column label="过期时间" min-width="160">
+          <template #default="{ row }">{{ formatTime(row.expiresAt) }}</template>
+        </el-table-column>
+        <el-table-column label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.enabled !== false ? 'success' : 'info'">
+              {{ row.enabled !== false ? '启用' : '停用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="copyInvite(row)">复制</el-button>
+            <el-button link type="danger" @click="deleteInvite(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
@@ -128,6 +162,9 @@ const resetDlg = ref(false)
 const resetLoading = ref(false)
 const resetTarget = ref(null)
 const resetForm = reactive({ password: '', password2: '' })
+const inviteDlg = ref(false)
+const inviteLoading = ref(false)
+const inviteRows = ref([])
 
 const filteredList = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
@@ -177,6 +214,66 @@ function saveEmail(row) {
 
 function savePhone(row) {
   patch(row, { phone: row.phone || null })
+}
+
+function formatTime(t) {
+  return t ? new Date(t).toLocaleString() : '长期有效'
+}
+
+function openInviteManager() {
+  inviteDlg.value = true
+}
+
+async function loadInvites() {
+  inviteLoading.value = true
+  try {
+    const { data } = await http.get('/admin/teacher-invites')
+    inviteRows.value = data || []
+  } catch (e) {
+    ElMessage.error(e.message)
+  } finally {
+    inviteLoading.value = false
+  }
+}
+
+async function generateInvite(row) {
+  try {
+    const { data } = await http.post('/admin/teacher-invites', {
+      teacherId: row.id,
+      maxUses: 50
+    })
+    ElMessage.success(`已生成邀请码：${data.code}`)
+    inviteDlg.value = true
+    await loadInvites()
+  } catch (e) {
+    ElMessage.error(e.message)
+  }
+}
+
+async function copyInvite(row) {
+  try {
+    await navigator.clipboard.writeText(row.code)
+    ElMessage.success('已复制邀请码')
+  } catch {
+    ElMessage.info(`邀请码：${row.code}`)
+  }
+}
+
+async function deleteInvite(row) {
+  try {
+    await ElMessageBox.confirm(`确认删除邀请码 ${row.code}？`, '删除邀请码', {
+      type: 'warning',
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+      confirmButtonClass: 'el-button--danger'
+    })
+    await http.delete(`/admin/teacher-invites/${row.id}`)
+    ElMessage.success('邀请码已删除')
+    await loadInvites()
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error(e.message)
+  }
 }
 
 function openResetPassword(row) {
@@ -310,5 +407,10 @@ onMounted(load)
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+.head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

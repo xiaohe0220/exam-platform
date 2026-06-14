@@ -26,6 +26,8 @@ public record RegisterRequest(
         @Size(max = 100)
         String className,
         @Size(max = 100)
-        String college
+        String college,
+        @Size(max = 64)
+        String inviteCode
 ) {
 }

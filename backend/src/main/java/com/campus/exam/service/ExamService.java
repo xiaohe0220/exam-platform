@@ -1,6 +1,7 @@
 package com.campus.exam.service;
 
 import com.campus.exam.domain.*;
+import com.campus.exam.repository.ExamAttemptRepository;
 import com.campus.exam.repository.ExamQuestionRepository;
 import com.campus.exam.repository.ExamRepository;
 import com.campus.exam.repository.QuestionRepository;
@@ -26,6 +27,7 @@ public class ExamService {
 
     private final ExamRepository examRepository;
     private final ExamQuestionRepository examQuestionRepository;
+    private final ExamAttemptRepository examAttemptRepository;
     private final QuestionRepository questionRepository;
     private final AuditService auditService;
     private final InAppNotificationService inAppNotificationService;
@@ -33,11 +35,13 @@ public class ExamService {
     public ExamService(
             ExamRepository examRepository,
             ExamQuestionRepository examQuestionRepository,
+            ExamAttemptRepository examAttemptRepository,
             QuestionRepository questionRepository,
             AuditService auditService,
             InAppNotificationService inAppNotificationService) {
         this.examRepository = examRepository;
         this.examQuestionRepository = examQuestionRepository;
+        this.examAttemptRepository = examAttemptRepository;
         this.questionRepository = questionRepository;
         this.auditService = auditService;
         this.inAppNotificationService = inAppNotificationService;
@@ -182,6 +186,18 @@ public class ExamService {
         Exam e = getOwnedExam(user, examId);
         e.setStatus(ExamStatus.CLOSED);
         return examRepository.save(e);
+    }
+
+    @Transactional
+    public void delete(AuthenticatedUser user, Long examId) {
+        requireStaff(user);
+        Exam e = getOwnedExam(user, examId);
+        if (examAttemptRepository.countByExamId(examId) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "已有学生作答记录，不能删除，可先关闭试卷");
+        }
+        examQuestionRepository.deleteByExamId(examId);
+        examRepository.delete(e);
+        auditService.log(user.id(), "EXAM_DELETE", "id=" + examId);
     }
 
     /** 延长考试可进入截止时间（在原有 endAt 基础上顺延，若为空则从当前时间起算） */

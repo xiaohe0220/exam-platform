@@ -136,6 +136,13 @@ public class TeacherExamController {
         return TeachersExamMapper.toSummary(e);
     }
 
+    @DeleteMapping("/{examId}")
+    public void delete(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long examId) {
+        examService.delete(user, examId);
+    }
+
     @GetMapping("/{examId}/attempts")
     public List<ExamAttempt> attempts(
             @AuthenticationPrincipal AuthenticatedUser user,

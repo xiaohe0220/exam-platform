@@ -22,7 +22,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="560" fixed="right">
+      <el-table-column label="操作" width="620" fixed="right">
         <template #default="{ row }">
           <el-button v-if="row.status === 'DRAFT'" link type="primary" @click="publish(row)">发布</el-button>
           <el-button link @click="loadStats(row)">统计</el-button>
@@ -32,6 +32,7 @@
           <el-button link @click="openRanking(row)">排名</el-button>
           <el-button link type="info" @click="openExamMeta(row)">考试设置</el-button>
           <el-button v-if="row.status === 'PUBLISHED'" link type="warning" @click="openExtend(row)">延长</el-button>
+          <el-button link type="danger" @click="deleteExam(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -436,6 +437,26 @@ async function publish(row) {
     load()
   } catch (e) {
     if (e !== 'cancel') ElMessage.error(e.message)
+  }
+}
+
+async function deleteExam(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除「${row.title}」？已有学生作答记录的试卷不可删除，请先关闭试卷。`,
+      '删除试卷',
+      {
+        type: 'warning',
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+    await http.delete(`/teacher/exams/${row.id}`)
+    ElMessage.success('试卷已删除')
+    load()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e.message)
   }
 }
 
