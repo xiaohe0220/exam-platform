@@ -9,7 +9,7 @@
 
 SET NAMES utf8mb4;
 
-SET @chapter_name = '计算机题库200题批量导入';
+SET @chapter_name = CONVERT('计算机题库200题批量导入' USING utf8mb4) COLLATE utf8mb4_unicode_ci;
 SET @creator_id = (SELECT id FROM users WHERE username = 'teacher' LIMIT 1);
 SET @creator_id = COALESCE(
   @creator_id,
